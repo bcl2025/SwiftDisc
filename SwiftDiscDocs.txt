@@ -32,7 +32,7 @@ Key Modules
 3) Gateway Layer
    - WebSocket abstraction: URLSessionWebSocketAdapter (Apple platforms), placeholder on Windows (adapter to be implemented if needed).
    - Models: GatewayOpcode, GatewayPayload, GatewayHello, IdentifyPayload, Intents, ReadyEvent.
-   - Client: Connects, receives HELLO, sends Identify, starts heartbeat, decodes events (READY, MESSAGE_CREATE), streams via event sink.
+   - Client: Connects, receives HELLO, sends Identify, maintains heartbeat with ACK tracking and jitter, supports Resume/auto-reconnect, decodes events (READY, MESSAGE_CREATE, GUILD_CREATE, INTERACTION_CREATE), streams via event sink.
 
 Intents
 -------
@@ -42,8 +42,7 @@ Intents
 
 Events
 ------
-- Current: READY, MESSAGE_CREATE.
-- Plan: GUILD_CREATE, INTERACTION_CREATE, and more per Discord docs.
+- Current: READY, MESSAGE_CREATE, GUILD_CREATE, INTERACTION_CREATE.
 - Access via DiscordClient.events (AsyncStream<DiscordEvent>).
 
 Usage Examples

@@ -158,7 +158,7 @@ try await client.sendMessage(channelId: "123456789", content: "Hello, Discord!")
 
 ## Current Status
 
-**Version:** 0.1.0-alpha
+**Version:** 0.1.0
 
 SwiftDisc is in active development. The following components are currently available:
 
@@ -176,7 +176,7 @@ SwiftDisc is in active development. The following components are currently avail
 
 - **Gateway**
   - Connection scaffolding
-  - Identify/Heartbeat (in progress)
+  - Identify/Heartbeat with ACK tracking
 
 - **Client API**
   - `getCurrentUser()`
@@ -193,12 +193,12 @@ SwiftDisc is in active development. The following components are currently avail
 SwiftDisc's development roadmap is inspired by battle-tested libraries like discord.py:
 
 ### Phase 1: Gateway Stability
-- [ ] Complete Identify, Resume, and Reconnect logic
-- [ ] Robust heartbeat/ACK tracking with jitter
-- [ ] Comprehensive intent support
-- [ ] Priority event coverage: `READY`, `MESSAGE_CREATE`, `GUILD_CREATE`, `INTERACTION_CREATE`
-- [ ] Sharding support
-- [ ] Presence updates
+- [x] Complete Identify, Resume, and Reconnect logic
+- [x] Robust heartbeat/ACK tracking with jitter
+- [x] Comprehensive intent support
+- [x] Priority event coverage: `READY`, `MESSAGE_CREATE`, `GUILD_CREATE`, `INTERACTION_CREATE`
+- [x] Sharding support
+- [x] Presence updates
 
 ### Phase 2: REST Maturity
 - [ ] Per-route rate limiting with automatic retries

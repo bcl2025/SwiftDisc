@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning.
 
+## [0.1.0] - 2025-11-11
+
+### Added
+- Gateway Phase 1 completion: Identify, Resume, and Reconnect logic.
+- Heartbeat ACK tracking with jitter and improved backoff.
+- Comprehensive intent support with clarified docs.
+- Priority event coverage: READY, MESSAGE_CREATE, GUILD_CREATE, INTERACTION_CREATE.
+- Initial sharding support and presence updates.
+
+### Changed
+- README updated to reflect 0.1.0 release, Phase 1 completion, and gateway notes.
+- Developer docs updated to include resume/reconnect and expanded event coverage.
+
+### Notes
+- Windows WebSocket adapter remains planned if Foundation’s WebSocket is unavailable.
+
 ## [0.1.0-alpha] - 2025-11-11
 
 ### Added
