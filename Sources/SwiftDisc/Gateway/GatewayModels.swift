@@ -4,6 +4,19 @@ public struct GatewayHello: Codable {
     public let heartbeat_interval: Int
 }
 
+public struct VoiceState: Codable, Hashable {
+    public let guild_id: Snowflake?
+    public let channel_id: Snowflake?
+    public let user_id: Snowflake
+    public let session_id: String
+}
+
+public struct VoiceServerUpdate: Codable, Hashable {
+    public let token: String
+    public let guild_id: Snowflake
+    public let endpoint: String?
+}
+
 public enum GatewayOpcode: Int, Codable {
     case dispatch = 0
     case heartbeat = 1
@@ -31,6 +44,8 @@ public enum DiscordEvent: Hashable {
     case channelUpdate(Channel)
     case channelDelete(Channel)
     case interactionCreate(Interaction)
+    case voiceStateUpdate(VoiceState)
+    case voiceServerUpdate(VoiceServerUpdate)
 }
 
 public struct ReadyEvent: Codable, Hashable {

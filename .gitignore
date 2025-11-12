@@ -37,7 +37,7 @@ Secrets/
 coverage/
 
 # Local reports (not committed)
-
+percentage.txt
 Reports/
 
 # Carthage / CocoaPods (not used, but ignore if present)

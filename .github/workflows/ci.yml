@@ -18,7 +18,16 @@ jobs:
       - name: Build
         run: swift build -v
       - name: Test
-        run: swift test -v
+        run: swift test -v --enable-code-coverage
+      - name: Export coverage
+        run: |
+          mkdir -p coverage
+          xcrun llvm-cov export -format=lcov .build/debug/SwiftDiscPackageTests.xctest/Contents/MacOS/SwiftDiscPackageTests -instr-profile .build/debug/codecov/default.profdata > coverage/lcov.info || true
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-macos
+          path: coverage/lcov.info
 
   build-and-test-windows:
     runs-on: windows-latest

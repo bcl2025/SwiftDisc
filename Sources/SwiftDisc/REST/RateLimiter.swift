@@ -30,8 +30,8 @@ actor RateLimiter {
                     let delay = resetAt.timeIntervalSince(now)
                     try await Task.sleep(nanoseconds: UInt64(max(0, delay) * 1_000_000_000))
                 }
-                // After reset, clear remaining so next request can proceed
-                buckets[routeKey]?.remaining = limit
+                // After reset, clear remaining; let next response headers set correct values
+                buckets[routeKey]?.remaining = nil
             }
         }
     }

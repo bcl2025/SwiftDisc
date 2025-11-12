@@ -1,5 +1,5 @@
 SwiftDisc Developer Documentation
-================================
+=================================
 
 Overview
 --------
@@ -10,10 +10,11 @@ Architecture
 - Package layout:
   - Sources/SwiftDisc
     - Internal: Config and shared error types
-    - Models: Core data models (Snowflake, User, Channel, Message)
+    - Models: Core data models (Snowflake, User, Channel, Message, Embed, Attachment, Role, GuildMember, GuildBan, GuildWidgetSettings)
     - REST: HTTP client and rate limiter
-    - Gateway: WebSocket abstraction, gateway models, client
-    - DiscordClient.swift: High-level facade
+    - Gateway: WebSocket abstraction, gateway models, actor-based client
+    - HighLevel: CommandRouter, SlashCommandRouter, ShardManager, Utilities
+    - DiscordClient.swift: High-level facade (REST + Gateway orchestration)
   - Tests/SwiftDiscTests: Unit tests
 
 Key Modules
@@ -22,17 +23,22 @@ Key Modules
    - loginAndConnect(intents:): Connects to the Gateway and begins streaming events.
    - events: AsyncStream<DiscordEvent> to consume gateway events.
    - getCurrentUser(): Fetches the current bot user via REST.
-   - sendMessage(channelId:content:): Sends a message to a channel via REST.
+   - sendMessage(channelId:content:/embeds/components): Sends messages with content, embeds, or components.
+   - editMessage/getMessage/listChannelMessages: Manage messages.
+   - REST helpers across Channels, Guilds, Members, Roles, Bans, Webhooks, Interactions.
+   - loginAndConnectSharded(index:total:): Sharded gateway connect helper.
+   - setPresence(status:activities:afk:since:): Presence update.
 
 2) REST Layer
-   - HTTPClient: GET/POST/PATCH/DELETE with Authorization header; retries for 429/5xx.
-   - RateLimiter: Per-route buckets honoring X-RateLimit-* and global limits with backoff.
+   - HTTPClient: GET/POST/PATCH/DELETE/PUT with Authorization header; retries/backoff for 429/5xx.
+   - RateLimiter: Per-route buckets honoring X-RateLimit-* and global limits with backoff; Retry-After respected.
    - Errors: DiscordError covering HTTP, API payload (message/code), encoding/decoding, network.
 
 3) Gateway Layer
-   - WebSocket abstraction: URLSessionWebSocketAdapter (Apple platforms), placeholder on Windows (adapter to be implemented if needed).
+   - WebSocket abstraction: URLSessionWebSocketAdapter (unified across platforms where supported).
    - Models: GatewayOpcode, GatewayPayload, GatewayHello, IdentifyPayload, Intents, ReadyEvent.
-   - Client: Connects, receives HELLO, sends Identify, maintains heartbeat with ACK tracking and jitter, supports Resume/auto-reconnect, decodes events (READY, MESSAGE_CREATE, GUILD_CREATE, INTERACTION_CREATE), streams via event sink.
+   - Client (actor): Connects, receives HELLO, sends Identify/Resume, maintains heartbeat with ACK tracking, auto-reconnect with exponential backoff, preserves shard, decodes events and streams via event sink.
+   - ShardManager: Orchestrates multiple DiscordClient shards in parallel.
 
 Intents
 -------
@@ -42,8 +48,18 @@ Intents
 
 Events
 ------
-- Current: READY, MESSAGE_CREATE, GUILD_CREATE, INTERACTION_CREATE.
+- Current: READY, MESSAGE_CREATE, GUILD_CREATE, CHANNEL_CREATE/UPDATE/DELETE, INTERACTION_CREATE, VOICE_STATE_UPDATE, VOICE_SERVER_UPDATE.
 - Access via DiscordClient.events (AsyncStream<DiscordEvent>).
+
+High-Level Routers
+------------------
+- CommandRouter (prefix):
+  - Register commands via `register("name", description:, handler:)` and optional `onError` callback.
+  - Generate help text via `helpText()`.
+- SlashCommandRouter:
+  - Register by command name or full path `registerPath("admin ban")`.
+  - Typed accessors: `string`, `int`, `bool`, `double`.
+  - Subcommands/groups supported via full-path resolution; optional `onError`.
 
 Usage Examples
 --------------
@@ -63,7 +79,13 @@ Usage Examples
 - Sending a message:
   let sent: Message = try await client.sendMessage(channelId: "123456789012345678", content: "Hello from SwiftDisc!")
 
-- REST examples (Phase 2):
+- Sending embeds and components:
+  let embed = Embed(title: "Hi", description: "Hello", color: 0x5865F2)
+  let btn = MessageComponent.Button(style: 1, label: "Click", custom_id: "btn_1")
+  let row = MessageComponent.ActionRow(components: [.button(btn)])
+  _ = try await client.sendMessage(channelId: ch.id, content: nil, embeds: [embed], components: [.actionRow(row)])
+
+- REST examples:
   let ch: Channel = try await client.getChannel(id: "123456789012345678")
   let ch2: Channel = try await client.modifyChannelName(id: ch.id, name: "general")
   try await client.deleteMessage(channelId: ch.id, messageId: "987654321098765432")
@@ -71,10 +93,14 @@ Usage Examples
   try await client.createInteractionResponse(interactionId: "222222222222222222", token: "tok", content: "Pong!")
   let hook: Webhook = try await client.createWebhook(channelId: ch.id, name: "MyHook")
   let viaHook: Message = try await client.executeWebhook(webhookId: hook.id, token: hook.token ?? "", content: "Hi from webhook")
+  let member: GuildMember = try await client.getGuildMember(guildId: guild.id, userId: "333333333333333333")
+  let roles: [Role] = try await client.listGuildRoles(guildId: guild.id)
+  let bans: [GuildBan] = try await client.listGuildBans(guildId: guild.id)
+  _ = try await client.triggerTypingIndicator(channelId: ch.id)
 
 Platform Notes
 --------------
-- Windows: If URLSessionWebSocketTask is unavailable, current build will surface a gateway unavailable error; a dedicated adapter is planned.
+- Windows: Uses URLSessionNetworking where available; if unavailable, gateway will report unsupported WebSocket.
 - iOS/watchOS: Be mindful of background execution limits for long-lived WebSocket connections.
 
 Error Handling
@@ -86,7 +112,23 @@ Error Handling
 
 Rate Limiting
 -------------
-- Basic global throttle currently. Future: per-route buckets with automatic retries and backoff.
+- Per-route buckets with automatic retries and backoff; honors X-RateLimit-* and global limits. Retry-After respected; exponential backoff for 5xx.
+
+Sharding
+--------
+- Use `ShardManager(token:totalShards).start(intents:)` to orchestrate multiple shards.
+- Or call `loginAndConnectSharded(index:total:intents:)` on individual clients.
+- Resume preserves session/shard; reconnect uses exponential backoff.
+
+Production Deployment
+---------------------
+- Build & Run: SwiftPM build; run with `DISCORD_TOKEN`.
+- Supervisor: systemd/launchd/PM2/Docker for uptime.
+- Config: Set intents in Developer Portal; configure shard count.
+- Environment: Logging, outbound access to Discord, clock sync.
+- Scaling: Horizontal sharding; respect rate limits.
+- Secrets: Never commit tokens; use env vars or secure stores.
+- CI/CD: GitHub Actions provided; add deploy job to your infra.
 
 Testing Strategy
 ----------------
@@ -106,10 +148,10 @@ Versioning & Changelog
 
 Roadmap Highlights
 ------------------
-- Gateway: Resume/reconnect, heartbeat ACK tracking, presence updates, sharding.
-- REST: Per-route buckets, error model decoding, and expanding endpoints coverage.
+- Gateway: Resume/reconnect, heartbeat ACK tracking, presence updates, sharding (implemented).
+- REST: Per-route buckets, error model decoding, expanding endpoints coverage (implemented and growing).
 - High-level: Command helpers, caching layer, callback adapter for UI frameworks.
-- Cross-platform: Windows WebSocket adapter and CI.
+- Cross-platform: Windows WebSocket adapter and CI (implemented).
 
 Support
 -------

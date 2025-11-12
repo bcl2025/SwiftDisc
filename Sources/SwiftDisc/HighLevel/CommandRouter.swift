@@ -22,6 +22,7 @@ public final class CommandRouter {
     private var prefix: String
     private var handlers: [String: Handler] = [:]
     private var metadata: [String: CommandMeta] = [:]
+    public var onError: ((Error, Context) -> Void)?
 
     public init(prefix: String = "!") {
         self.prefix = prefix
@@ -48,7 +49,8 @@ public final class CommandRouter {
         do {
             try await handler(Context(client: client, message: message, args: args))
         } catch {
-            // swallow errors in handlers for now
+            let ctx = Context(client: client, message: message, args: args)
+            if let onError { onError(error, ctx) }
         }
     }
 

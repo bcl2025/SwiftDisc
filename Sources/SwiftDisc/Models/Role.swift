@@ -1,0 +1,12 @@
+import Foundation
+
+public struct Role: Codable, Hashable {
+    public let id: Snowflake
+    public let name: String
+    public let color: Int?
+    public let hoist: Bool?
+    public let position: Int?
+    public let permissions: String?
+    public let managed: Bool?
+    public let mentionable: Bool?
+}

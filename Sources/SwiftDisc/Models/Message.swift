@@ -5,4 +5,8 @@ public struct Message: Codable, Hashable {
     public let channel_id: Snowflake
     public let author: User
     public let content: String
+    public let embeds: [Embed]?
+    public let attachments: [Attachment]?
+    public let mentions: [User]?
+    public let components: [MessageComponent]?
 }

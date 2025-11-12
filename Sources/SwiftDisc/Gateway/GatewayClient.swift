@@ -1,6 +1,6 @@
 import Foundation
 
-final class GatewayClient {
+actor GatewayClient {
     private let token: String
     private let configuration: DiscordConfiguration
 
@@ -13,6 +13,7 @@ final class GatewayClient {
 
     private var lastIntents: GatewayIntents = []
     private var lastEventSink: ((DiscordEvent) -> Void)?
+    private var lastShard: (index: Int, total: Int)?
 
     init(token: String, configuration: DiscordConfiguration) {
         self.token = token
@@ -20,12 +21,15 @@ final class GatewayClient {
     }
 
     func connect(intents: GatewayIntents, shard: (index: Int, total: Int)? = nil, eventSink: @escaping (DiscordEvent) -> Void) async throws {
-        let url = URL(string: "\(configuration.gatewayBaseURL.absoluteString)?v=\(configuration.apiVersion)&encoding=json")!
+        guard let url = URL(string: "\(configuration.gatewayBaseURL.absoluteString)?v=\(configuration.apiVersion)&encoding=json") else {
+            throw DiscordError.gateway("Invalid gateway URL")
+        }
 
         let socket: WebSocketClient = URLSessionWebSocketAdapter(url: url)
         self.socket = socket
         self.lastIntents = intents
         self.lastEventSink = eventSink
+        self.lastShard = shard
 
         // 1) Receive HELLO
         guard case let .string(helloText) = try await socket.receive() else {
@@ -110,6 +114,14 @@ final class GatewayClient {
                             if let payload = try? dec.decode(GatewayPayload<Interaction>.self, from: data), let interaction = payload.d {
                                 eventSink(.interactionCreate(interaction))
                             }
+                        } else if t == "VOICE_STATE_UPDATE" {
+                            if let payload = try? dec.decode(GatewayPayload<VoiceState>.self, from: data), let state = payload.d {
+                                eventSink(.voiceStateUpdate(state))
+                            }
+                        } else if t == "VOICE_SERVER_UPDATE" {
+                            if let payload = try? dec.decode(GatewayPayload<VoiceServerUpdate>.self, from: data), let vsu = payload.d {
+                                eventSink(.voiceServerUpdate(vsu))
+                            }
                         }
                     case .heartbeatAck:
                         awaitingHeartbeatAck = false
@@ -121,6 +133,10 @@ final class GatewayClient {
                         break
                     }
                 }
+            } catch let error as DecodingError {
+                // Non-fatal: skip malformed frame and continue
+                _ = error
+                continue
             } catch {
                 await attemptReconnect()
                 break
@@ -162,13 +178,25 @@ final class GatewayClient {
         awaitingHeartbeatAck = false
         let intents = lastIntents
         guard let sink = lastEventSink else { return }
-        // naive backoff
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        do {
-            try await connect(intents: intents, shard: nil, eventSink: sink)
-        } catch {
-            // give up for now; future: retry with increasing backoff
+        // exponential backoff with cap
+        var delay: UInt64 = 500_000_000
+        for _ in 0..<5 {
+            try? await Task.sleep(nanoseconds: delay)
+            do {
+                try await connect(intents: intents, shard: lastShard, eventSink: sink)
+                return
+            } catch {
+                delay = min(delay * 2, 8_000_000_000)
+                continue
+            }
         }
+    }
+
+    func close() async {
+        await socket?.close()
+        socket = nil
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
     }
 
     // Presence update

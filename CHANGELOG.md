@@ -4,6 +4,77 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning.
 
+## [0.6.0] - 2025-11-11
+
+### Highlights
+- Minreqs readiness: broad REST coverage (minus voice), advanced gateway (resume/reconnect), robust rate limiting, professional README/docs, examples, and CI.
+
+### Added
+- Slash Commands
+  - Typed routing via `SlashCommandRouter` with subcommand path resolution and typed accessors (string/int/bool/double).
+  - Full management: create/list/delete/bulk-overwrite for global and guild commands.
+  - Options: all official types and `choices` support.
+  - Permissions: `default_member_permissions`, `dm_permission` via `ApplicationCommandCreate`.
+- Gateway & Stability
+  - `GatewayClient` converted to an actor; serialized event handling via `EventDispatcher` actor.
+  - Reconnect with exponential backoff; preserve shard across reconnects; non-fatal decode errors.
+- Sharding
+  - `loginAndConnectSharded(index:total:)` and `ShardManager` to orchestrate multiple shards.
+- REST Coverage
+  - Channels: get/modify/name edit, create/delete, list messages, permissions edit/delete, bulk channel positions, typing indicator.
+  - Guilds: get/modify settings (verification, notifications, system channel, content filter), widget get/modify, prune count/begin, list channels.
+  - Members: get/list/modify (nick, roles).
+  - Roles: list/create/modify/delete, bulk role positions.
+  - Messages: send/edit (content/embeds/components), get, list.
+  - Interactions: responses with content or embeds; generic response type enum.
+  - Webhooks: create/execute/list/get/modify/delete.
+  - Bans: list/create/delete.
+- Models
+  - Rich `Embed` (author/footer icon/thumbnail/image/timestamp/fields).
+  - `Message` includes `embeds`, `attachments`, `mentions`, `components`.
+  - `MessageComponent` (ActionRow, Button, SelectMenu).
+  - `Interaction` includes guild_id and nested command options with types.
+  - `Guild`, `Channel`, `GuildMember`, `Role`, `Webhook`, `GuildBan`, `GuildWidgetSettings` expanded.
+- Cross-Platform & CI
+  - Unified URLSession-based WebSocket adapter; tuned URLSession config.
+  - GitHub Actions CI for macOS and Windows; code coverage artifact and README badge.
+- High-Level API & Utilities
+  - `CommandRouter` and `SlashCommandRouter` with `onError` callbacks.
+  - `BotUtils`: message chunking, mention/prefix helpers.
+- Docs & Examples
+  - README: minreqs checklist, Distinct Value section, Production Deployment section, polished header/buttons.
+  - Examples: Ping, Prefix Commands, Slash bot.
+
+### Changed
+- Rate limiter: fixed bucket reset handling; rely on response headers post-reset.
+- REST/HTTP: improved headers and robustness; retries/backoff tuned.
+- Event processing: moved to actor for serial handling; simplified client sinks.
+
+### Removed
+- Phase 5 roadmap (testing/benchmarks) from README per project direction; Production Deployment section added instead.
+
+### Notes
+- Voice is optional and not required for listing; future work may add voice gateway/UDP/audio.
+
+## [0.5.2] - 2025-11-11
+
+### Added
+- SlashCommandRouter to map INTERACTION_CREATE application commands to typed handlers.
+- Example: Slash commands bot (Examples/SlashBot.swift).
+- Models expanded:
+  - Channel: topic, nsfw, position, parent_id.
+  - Guild: owner_id, member_count.
+  - Message: embeds[]
+  - Interaction: guild_id and ApplicationCommandData (name/options)
+- Voice groundwork: VoiceState and VoiceServerUpdate models and events.
+
+### Changed
+- DiscordClient: wired slash router in both unsharded and sharded paths.
+- Gateway/HTTP clients: tuned URLSession configuration for platform excellence.
+
+### Notes
+- Next: typed slash responders (subcommands, choices, permissions), voice UDP/audio, broader model/endpoint coverage.
+
 ## [0.5.0] - 2025-11-11
 
 ### Added
