@@ -73,6 +73,68 @@ targets: [
 ]
 ```
 
+## Setup & Configuration
+
+### Prerequisites
+
+- Swift 5.9+
+- Internet access to Discord Gateway and REST endpoints
+- A Discord application with a Bot token
+
+### Windows
+
+- Install Swift toolchain for Windows (from swift.org downloads)
+- Ensure `swift` is on PATH
+- Foundation's URLSession WebSocket is used; no extra dependencies required
+
+### Environment Variables
+
+- `DISCORD_TOKEN` — your bot token (do not include `Bot ` prefix)
+
+Example run command:
+
+```bash
+DISCORD_TOKEN=your_token_here swift run
+```
+
+### Intents
+
+- Start with minimal intents: `.guilds`, `.guildMessages`
+- Enable privileged intents in the Developer Portal if needed (`.messageContent`, `.guildMembers`, `.guildPresences`)
+
+### Logging
+
+SwiftDisc prints structured logs to stdout by default. To integrate with swift-log:
+
+```swift
+import Logging
+LoggingSystem.bootstrap { label in
+    var h = StreamLogHandler.standardOutput(label: label)
+    h.logLevel = .info // .debug for development
+    return h
+}
+```
+
+### Migrating to ShardingGatewayManager
+
+If you currently use `DiscordClient.loginAndConnect`, you can migrate to sharding with minimal changes:
+
+```swift
+// Before
+let client = DiscordClient(token: token)
+try await client.loginAndConnect(intents: [.guilds, .guildMessages])
+for await ev in client.events { /* ... */ }
+
+// After
+let manager = await ShardingGatewayManager(
+    token: token,
+    configuration: .init(shardCount: .automatic),
+    intents: [.guilds, .guildMessages]
+)
+try await manager.connect()
+for await sharded in manager.events { /* sharded.event, sharded.shardId */ }
+```
+
 ## Quick Start
 
 Here's a minimal bot that responds to Discord events:
@@ -264,6 +326,206 @@ Deploying SwiftDisc-based bots:
   - Never commit tokens. Use env vars or secret stores (Keychain/KeyVault/Parameter Store).
 - **CI/CD**
   - Use GitHub Actions CI provided (build/test/coverage). Add a deploy job to your infrastructure.
+
+### Sharding Configuration
+
+For production bots with many guilds, prefer automatic shard count and staggered connections:
+
+```swift
+let manager = await ShardingGatewayManager(
+    token: token,
+    configuration: .init(
+        shardCount: .automatic,
+        connectionDelay: .staggered(interval: 1.5),
+        makePresence: { shardId, total in
+            .init(
+                activities: [.init(name: "Shard \(shardId+1)/\(total)", type: 3 /* watching */)],
+                status: "online",
+                afk: false
+            )
+        }
+    ),
+    intents: [.guilds, .guildMessages, .messageContent]
+)
+```
+
+### Health Monitoring
+
+Expose a simple health probe using the sharding manager's health API:
+
+```swift
+struct HealthStatus: Codable {
+    let healthy: Bool
+    let totalShards: Int
+    let readyShards: Int
+    let connectingShards: Int
+    let reconnectingShards: Int
+    let averageLatencyMs: Int?
+}
+
+func healthCheck(manager: ShardingGatewayManager) async -> HealthStatus {
+    let h = await manager.healthCheck()
+    let avgMs = h.averageLatency.map { Int($0 * 1000) }
+    let healthy = (h.readyShards == h.totalShards)
+    return HealthStatus(
+        healthy: healthy,
+        totalShards: h.totalShards,
+        readyShards: h.readyShards,
+        connectingShards: h.connectingShards,
+        reconnectingShards: h.reconnectingShards,
+        averageLatencyMs: avgMs
+    )
+}
+```
+
+## Sharding
+
+SwiftDisc provides a high-level `ShardingGatewayManager` for production-grade sharding:
+
+```swift
+let manager = await ShardingGatewayManager(
+    token: token,
+    configuration: .init(shardCount: .automatic),
+    intents: [.guilds, .guildMessages]
+)
+
+try await manager.connect()
+
+for await sharded in manager.events {
+    // sharded.shardId identifies which shard received the event
+    switch sharded.event {
+    case .ready(let info): print("READY on shard \(sharded.shardId): \(info.user.username)")
+    default: break
+    }
+}
+```
+
+**Best Practices**
+
+- Start with `.automatic` shard count
+- Monitor shard health in production (`healthCheck()` and `shardHealth(id:)`)
+- Use `.staggered(interval:)` for very large bots
+- Enable guild distribution verification during development
+- Use `restartShard(_:)` to recover a problem shard without restarting the bot
+
+**Troubleshooting**
+
+- "Shard X failed to connect after 5 attempts" → check token/network/Discord status
+- "Guild distribution mismatches detected" → try restarting the affected shard; ensure `.automatic` shard count
+- High latency on specific shards → `restartShard(_:)` that shard
+
+### Per-shard presence and event streams
+
+```swift
+let manager = await ShardingGatewayManager(
+    token: token,
+    configuration: .init(
+        shardCount: .automatic,
+        connectionDelay: .staggered(interval: 1.5),
+        makePresence: { shard, total in
+            .init(
+                activities: [.init(name: "Shard \(shard+1)/\(total)", type: 3 /* watching */)],
+                status: "online",
+                afk: false
+            )
+        }
+    ),
+    intents: [.guilds, .guildMessages, .messageContent]
+)
+
+try await manager.connect()
+
+// Filtered event stream for a subset of shards
+for await se in manager.events(for: [0, 1]) {
+    print("Shards 0-1 event from shard \(se.shardId)")
+}
+```
+
+### Graceful shutdown
+
+```swift
+// On SIGINT/SIGTERM
+Task { await manager.disconnect() }
+```
+
+---
+
+## Advanced Features
+
+### Scheduled Events
+
+```swift
+// Create a scheduled event (voice/stage/external)
+let ev = try await client.createGuildScheduledEvent(
+    guildId: guildId,
+    channelId: voiceChannelId,
+    entityType: .voice,
+    name: "Community Meetup",
+    scheduledStartTimeISO8601: "2026-01-10T18:00:00Z",
+    description: "Monthly chat"
+)
+
+// Get interested users
+let users = try await client.listGuildScheduledEventUsers(
+    guildId: guildId,
+    eventId: ev.id,
+    withMember: true
+)
+```
+
+### Stage Instances
+
+```swift
+// Start a stage instance
+let stage = try await client.createStageInstance(
+    channelId: stageChannelId,
+    topic: "Q&A with the dev team",
+    privacyLevel: 2 // guild-only
+)
+
+// Update topic
+_ = try await client.modifyStageInstance(channelId: stageChannelId, topic: "Now taking questions!")
+
+// End the stage
+try await client.deleteStageInstance(channelId: stageChannelId)
+```
+
+### Auto Moderation
+
+```swift
+let rule = try await client.createAutoModerationRule(
+    guildId: guildId,
+    name: "Block Spam Links",
+    eventType: 1, // message send
+    triggerType: 3, // spam or keyword preset
+    actions: [ .init(type: 1, metadata: nil) ]
+)
+```
+
+### Audit Logs
+
+```swift
+let logs = try await client.getGuildAuditLog(guildId: guildId, actionType: 20, limit: 50)
+for entry in logs.audit_log_entries { print(entry) }
+```
+
+### Stickers
+
+```swift
+let stickers = try await client.listGuildStickers(guildId: guildId)
+let s = try await client.getSticker(id: someStickerId)
+```
+
+### Forum Channels
+
+```swift
+let thread = try await client.createForumThread(
+    channelId: forumChannelId,
+    name: "How do I use SwiftDisc?",
+    content: "I'm trying to build a bot...",
+    autoArchiveDuration: 1440
+)
+```
 
 ## Design Philosophy
 

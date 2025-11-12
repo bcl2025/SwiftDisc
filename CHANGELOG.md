@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning.
 
+## [0.6.1] - 2025-11-12
+
+### Highlights
+- ShardingGatewayManager Phase 2 complete: per-shard presence, event streams, staggered connects, guild distribution verification.
+- Phase 2 Day 4: graceful shutdown and resume metrics, plus health APIs and docs.
+
+### Added
+- ShardingGatewayManager
+  - Per-shard presence via configuration callbacks with fallback.
+  - Per-shard filtered event streams: `events(for:)`, `events(for: [Int])`.
+  - Staggered connection mode with batch pacing respecting identify concurrency.
+  - Guild distribution verification after all shards READY.
+  - Graceful shutdown: `disconnect()` sets shutdown gate, prevents reconnects, closes shards concurrently, clears `/gateway/bot` cache.
+  - Health surfaces: `healthCheck()` aggregate metrics and `shardHealth(id:)` snapshots including resume metrics.
+  - Restart API: `restartShard(_:)`.
+- GatewayClient
+  - Resume metrics: success/failure counters, last attempt/success timestamps.
+  - `RESUMED` handling and `INVALID_SESSION` fallback with gated reconnects.
+  - Reconnect gating via `setAllowReconnect(_:)`.
+- REST Endpoints
+  - Stickers: `getSticker`, `listStickerPacks`, `listGuildStickers`, `getGuildSticker`.
+  - Forum helper: `createForumThread(...)`.
+  - Auto Moderation: list/get/create/modify/delete rules.
+  - Scheduled Events: list/create/get/modify/delete and list interested users.
+  - Stage Instances: create/get/modify/delete.
+  - Audit Logs: `getGuildAuditLog(...)`.
+  - Invites & Templates: create/list/delete and template CRUD/list/sync.
+- Docs
+  - README: Setup & Configuration (Windows notes, env vars, intents, logging), Sharding section, Advanced Features, Production sharding config, Health Monitoring, Graceful Shutdown.
+  - Tests
+    - Initial sharding tests: configuration defaults, staggered delay, shard formula, ShardedEvent wrapper.
+
+### Changed
+- ShardingGatewayManager initializer split configuration concerns:
+  - `init(token:configuration:intents:httpConfiguration:)` where `configuration` is sharding options and `httpConfiguration` is HTTP/Gateway config.
+- README examples updated to match API and new initializer defaults.
+
+### Fixed
+- Prevent reconnect loops during shutdown by gating reconnect attempts.
+- Handle `INVALID_SESSION` by clearing session/seq and performing clean re-identify.
+- Track `RESUMED` to mark READY and record metrics.
+
+### Notes
+- Voice/multipart sticker upload remain deferred.
+
 ## [0.6.0] - 2025-11-11
 
 ### Highlights

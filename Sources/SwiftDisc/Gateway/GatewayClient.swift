@@ -10,6 +10,24 @@ actor GatewayClient {
     private var seq: Int?
     private var sessionId: String?
     private var awaitingHeartbeatAck = false
+    private var lastHeartbeatSentAt: Date?
+    private var lastHeartbeatAckAt: Date?
+    private var resumeCount: Int = 0
+    private var resumeSuccessCount: Int = 0
+    private var resumeFailureCount: Int = 0
+    private var lastResumeAttemptAt: Date?
+    private var lastResumeSuccessAt: Date?
+    private var allowReconnect: Bool = true
+
+    enum Status {
+        case disconnected
+        case connecting
+        case identifying
+        case ready
+        case resuming
+        case reconnecting
+    }
+    private var status: Status = .disconnected
 
     private var lastIntents: GatewayIntents = []
     private var lastEventSink: ((DiscordEvent) -> Void)?
@@ -30,6 +48,7 @@ actor GatewayClient {
         self.lastIntents = intents
         self.lastEventSink = eventSink
         self.lastShard = shard
+        self.status = .connecting
 
         // 1) Receive HELLO
         guard case let .string(helloText) = try await socket.receive() else {
@@ -46,11 +65,14 @@ actor GatewayClient {
         // 3) Send Resume (if possible) or Identify
         let enc = JSONEncoder()
         if let sessionId, let seq {
+            self.status = .resuming
+            self.lastResumeAttemptAt = Date()
             let resume = ResumePayload(token: token, session_id: sessionId, seq: seq)
             let payload = GatewayPayload(op: .resume, d: resume, s: nil, t: nil)
             let data = try enc.encode(payload)
             try await socket.send(.string(String(decoding: data, as: UTF8.self)))
         } else {
+            self.status = .identifying
             let shardArray: [Int]? = shard.map { [$0.index, $0.total] }
             let identify = IdentifyPayload(token: token, intents: intents.rawValue, properties: .default, compress: nil, large_threshold: nil, shard: shardArray)
             let payload = GatewayPayload(op: .identify, d: identify, s: nil, t: nil)
@@ -88,8 +110,15 @@ actor GatewayClient {
                             if let payload = try? dec.decode(GatewayPayload<ReadyEvent>.self, from: data), let ready = payload.d {
                                 // capture session id for resume
                                 self.sessionId = ready.session_id ?? self.sessionId
+                                self.status = .ready
                                 eventSink(.ready(ready))
                             }
+                        } else if t == "RESUMED" {
+                            // Successful resume
+                            self.status = .ready
+                            self.resumeSuccessCount += 1
+                            self.lastResumeSuccessAt = Date()
+                            // No specific event emitted for RESUMED in our public API
                         } else if t == "MESSAGE_CREATE" {
                             if let payload = try? dec.decode(GatewayPayload<Message>.self, from: data), let msg = payload.d {
                                 eventSink(.messageCreate(msg))
@@ -125,6 +154,14 @@ actor GatewayClient {
                         }
                     case .heartbeatAck:
                         awaitingHeartbeatAck = false
+                        lastHeartbeatAckAt = Date()
+                        break
+                    case .invalidSession:
+                        // Resume failed; clear session to force new identify next connect
+                        self.resumeFailureCount += 1
+                        self.sessionId = nil
+                        self.seq = nil
+                        await attemptReconnect()
                         break
                     case .reconnect:
                         await attemptReconnect()
@@ -157,6 +194,7 @@ actor GatewayClient {
                     try await self.socket?.send(.string(String(decoding: data, as: UTF8.self)))
                     // mark awaiting ACK; if next tick comes and still awaiting, trigger reconnect
                     self.awaitingHeartbeatAck = true
+                    self.lastHeartbeatSentAt = Date()
                 } catch {
                     // swallow for now; read loop will handle disconnects
                 }
@@ -171,11 +209,13 @@ actor GatewayClient {
 
     private func attemptReconnect() async {
         // Basic reconnect: close existing socket and perform a fresh connect
+        if !allowReconnect { return }
         await socket?.close()
         socket = nil
         heartbeatTask?.cancel()
         heartbeatTask = nil
         awaitingHeartbeatAck = false
+        status = .reconnecting
         let intents = lastIntents
         guard let sink = lastEventSink else { return }
         // exponential backoff with cap
@@ -197,6 +237,7 @@ actor GatewayClient {
         socket = nil
         heartbeatTask?.cancel()
         heartbeatTask = nil
+        status = .disconnected
     }
 
     // Presence update
@@ -208,6 +249,23 @@ actor GatewayClient {
             try? await socket.send(.string(String(decoding: data, as: UTF8.self)))
         }
     }
+
+    // MARK: - Health accessors
+    func heartbeatLatency() -> TimeInterval? {
+        guard let sent = lastHeartbeatSentAt, let ack = lastHeartbeatAckAt else { return nil }
+        return ack.timeIntervalSince(sent)
+    }
+
+    func currentStatus() -> Status { status }
+    func currentSessionId() -> String? { sessionId }
+    func currentSeq() -> Int? { seq }
+    func incrementResumeCount() { resumeCount += 1 }
+    func currentResumeCount() -> Int { resumeCount }
+  func getResumeSuccessCount() -> Int { resumeSuccessCount }
+  func getResumeFailureCount() -> Int { resumeFailureCount }
+  func getLastResumeAttemptAt() -> Date? { lastResumeAttemptAt }
+  func getLastResumeSuccessAt() -> Date? { lastResumeSuccessAt }
+  func setAllowReconnect(_ allow: Bool) { allowReconnect = allow }
 }
 
 // MARK: - Lightweight decoding helpers

@@ -424,20 +424,334 @@ public final class DiscordClient {
         return try await http.post(path: "/webhooks/\(webhookId)/\(token)", body: Body(content: content))
     }
 
-    public func listChannelWebhooks(channelId: Snowflake) async throws -> [Webhook] {
-        try await http.get(path: "/channels/\(channelId)/webhooks")
+    public func createChannelInvite(channelId: Snowflake, maxAge: Int? = nil, maxUses: Int? = nil, temporary: Bool? = nil, unique: Bool? = nil) async throws -> Invite {
+        struct Body: Encodable {
+            let max_age: Int?
+            let max_uses: Int?
+            let temporary: Bool?
+            let unique: Bool?
+        }
+        let body = Body(max_age: maxAge, max_uses: maxUses, temporary: temporary, unique: unique)
+        return try await http.post(path: "/channels/\(channelId)/invites", body: body)
     }
 
-    public func getWebhook(id: Snowflake) async throws -> Webhook {
-        try await http.get(path: "/webhooks/\(id)")
+    public func listChannelInvites(channelId: Snowflake) async throws -> [Invite] {
+        try await http.get(path: "/channels/\(channelId)/invites")
     }
 
-    public func modifyWebhook(id: Snowflake, name: String? = nil, channelId: Snowflake? = nil) async throws -> Webhook {
-        struct Body: Encodable { let name: String?; let channel_id: Snowflake? }
-        return try await http.patch(path: "/webhooks/\(id)", body: Body(name: name, channel_id: channelId))
+    public func listGuildInvites(guildId: Snowflake) async throws -> [Invite] {
+        try await http.get(path: "/guilds/\(guildId)/invites")
     }
 
-    public func deleteWebhook(id: Snowflake) async throws {
-        try await http.delete(path: "/webhooks/\(id)")
+    public func getInvite(code: String, withCounts: Bool = false, withExpiration: Bool = false) async throws -> Invite {
+        let path = "/invites/\(code)?with_counts=\(withCounts)&with_expiration=\(withExpiration)"
+        return try await http.get(path: path)
+    }
+
+    public func deleteInvite(code: String) async throws {
+        try await http.delete(path: "/invites/\(code)")
+    }
+
+    public func getTemplate(code: String) async throws -> Template {
+        try await http.get(path: "/guilds/templates/\(code)")
+    }
+
+    public func listGuildTemplates(guildId: Snowflake) async throws -> [Template] {
+        try await http.get(path: "/guilds/\(guildId)/templates")
+    }
+
+    public func createGuildTemplate(guildId: Snowflake, name: String, description: String? = nil) async throws -> Template {
+        struct Body: Encodable { let name: String; let description: String? }
+        return try await http.post(path: "/guilds/\(guildId)/templates", body: Body(name: name, description: description))
+    }
+
+    public func modifyGuildTemplate(guildId: Snowflake, code: String, name: String? = nil, description: String? = nil) async throws -> Template {
+        struct Body: Encodable { let name: String?; let description: String? }
+        return try await http.patch(path: "/guilds/\(guildId)/templates/\(code)", body: Body(name: name, description: description))
+    }
+
+    public func syncGuildTemplate(guildId: Snowflake, code: String) async throws -> Template {
+        struct Empty: Encodable {}
+        return try await http.put(path: "/guilds/\(guildId)/templates/\(code)", body: Empty())
+    }
+
+    public func deleteGuildTemplate(guildId: Snowflake, code: String) async throws {
+        try await http.delete(path: "/guilds/\(guildId)/templates/\(code)")
+    }
+
+    // MARK: - REST: Stickers
+    public func getSticker(id: Snowflake) async throws -> Sticker {
+        try await http.get(path: "/stickers/\(id)")
+    }
+
+    public func listStickerPacks() async throws -> [StickerPack] {
+        struct Packs: Decodable { let sticker_packs: [StickerPack] }
+        let resp: Packs = try await http.get(path: "/sticker-packs")
+        return resp.sticker_packs
+    }
+
+    public func listGuildStickers(guildId: Snowflake) async throws -> [Sticker] {
+        try await http.get(path: "/guilds/\(guildId)/stickers")
+    }
+
+    public func getGuildSticker(guildId: Snowflake, stickerId: Snowflake) async throws -> Sticker {
+        try await http.get(path: "/guilds/\(guildId)/stickers/\(stickerId)")
+    }
+
+    // MARK: - REST: Forum helpers
+    public func createForumThread(
+        channelId: Snowflake,
+        name: String,
+        content: String? = nil,
+        embeds: [Embed]? = nil,
+        components: [MessageComponent]? = nil,
+        appliedTagIds: [Snowflake]? = nil,
+        autoArchiveDuration: Int? = nil,
+        rateLimitPerUser: Int? = nil
+    ) async throws -> Channel {
+        struct Msg: Encodable { let content: String?; let embeds: [Embed]?; let components: [MessageComponent]? }
+        struct Body: Encodable {
+            let name: String
+            let auto_archive_duration: Int?
+            let rate_limit_per_user: Int?
+            let message: Msg?
+            let applied_tags: [Snowflake]?
+        }
+        let message = (content == nil && embeds == nil && components == nil) ? nil : Msg(content: content, embeds: embeds, components: components)
+        let body = Body(
+            name: name,
+            auto_archive_duration: autoArchiveDuration,
+            rate_limit_per_user: rateLimitPerUser,
+            message: message,
+            applied_tags: appliedTagIds
+        )
+        return try await http.post(path: "/channels/\(channelId)/threads", body: body)
+    }
+
+    // MARK: - REST: Audit Logs
+    public func getGuildAuditLog(
+        guildId: Snowflake,
+        userId: Snowflake? = nil,
+        actionType: Int? = nil,
+        before: Snowflake? = nil,
+        limit: Int? = nil
+    ) async throws -> AuditLog {
+        var path = "/guilds/\(guildId)/audit-logs"
+        var qs: [String] = []
+        if let userId { qs.append("user_id=\(userId)") }
+        if let actionType { qs.append("action_type=\(actionType)") }
+        if let before { qs.append("before=\(before)") }
+        if let limit { qs.append("limit=\(limit)") }
+        if !qs.isEmpty { path += "?" + qs.joined(separator: "&") }
+        return try await http.get(path: path)
+    }
+
+    // MARK: - REST: AutoModeration
+    public func listAutoModerationRules(guildId: Snowflake) async throws -> [AutoModerationRule] {
+        try await http.get(path: "/guilds/\(guildId)/auto-moderation/rules")
+    }
+
+    public func getAutoModerationRule(guildId: Snowflake, ruleId: Snowflake) async throws -> AutoModerationRule {
+        try await http.get(path: "/guilds/\(guildId)/auto-moderation/rules/\(ruleId)")
+    }
+
+    public func createAutoModerationRule(
+        guildId: Snowflake,
+        name: String,
+        eventType: Int,
+        triggerType: Int,
+        triggerMetadata: AutoModerationRule.TriggerMetadata? = nil,
+        actions: [AutoModerationRule.Action],
+        enabled: Bool? = nil,
+        exemptRoles: [Snowflake]? = nil,
+        exemptChannels: [Snowflake]? = nil
+    ) async throws -> AutoModerationRule {
+        struct Body: Encodable {
+            let name: String
+            let event_type: Int
+            let trigger_type: Int
+            let trigger_metadata: AutoModerationRule.TriggerMetadata?
+            let actions: [AutoModerationRule.Action]
+            let enabled: Bool?
+            let exempt_roles: [Snowflake]?
+            let exempt_channels: [Snowflake]?
+        }
+        let body = Body(
+            name: name,
+            event_type: eventType,
+            trigger_type: triggerType,
+            trigger_metadata: triggerMetadata,
+            actions: actions,
+            enabled: enabled,
+            exempt_roles: exemptRoles,
+            exempt_channels: exemptChannels
+        )
+        return try await http.post(path: "/guilds/\(guildId)/auto-moderation/rules", body: body)
+    }
+
+    public func modifyAutoModerationRule(
+        guildId: Snowflake,
+        ruleId: Snowflake,
+        name: String? = nil,
+        eventType: Int? = nil,
+        triggerMetadata: AutoModerationRule.TriggerMetadata? = nil,
+        actions: [AutoModerationRule.Action]? = nil,
+        enabled: Bool? = nil,
+        exemptRoles: [Snowflake]? = nil,
+        exemptChannels: [Snowflake]? = nil
+    ) async throws -> AutoModerationRule {
+        struct Body: Encodable {
+            let name: String?
+            let event_type: Int?
+            let trigger_metadata: AutoModerationRule.TriggerMetadata?
+            let actions: [AutoModerationRule.Action]?
+            let enabled: Bool?
+            let exempt_roles: [Snowflake]?
+            let exempt_channels: [Snowflake]?
+        }
+        let body = Body(
+            name: name,
+            event_type: eventType,
+            trigger_metadata: triggerMetadata,
+            actions: actions,
+            enabled: enabled,
+            exempt_roles: exemptRoles,
+            exempt_channels: exemptChannels
+        )
+        return try await http.patch(path: "/guilds/\(guildId)/auto-moderation/rules/\(ruleId)", body: body)
+    }
+
+    public func deleteAutoModerationRule(guildId: Snowflake, ruleId: Snowflake) async throws {
+        try await http.delete(path: "/guilds/\(guildId)/auto-moderation/rules/\(ruleId)")
+    }
+
+    // MARK: - REST: Scheduled Events
+    public func listGuildScheduledEvents(guildId: Snowflake, withCounts: Bool = false) async throws -> [GuildScheduledEvent] {
+        let suffix = withCounts ? "?with_user_count=true" : ""
+        return try await http.get(path: "/guilds/\(guildId)/scheduled-events\(suffix)")
+    }
+
+    public func createGuildScheduledEvent(
+        guildId: Snowflake,
+        channelId: Snowflake?,
+        entityType: GuildScheduledEvent.EntityType,
+        name: String,
+        scheduledStartTimeISO8601: String,
+        scheduledEndTimeISO8601: String? = nil,
+        privacyLevel: Int = 2,
+        description: String? = nil,
+        entityMetadata: GuildScheduledEvent.EntityMetadata? = nil
+    ) async throws -> GuildScheduledEvent {
+        struct Body: Encodable {
+            let channel_id: Snowflake?
+            let entity_type: Int
+            let name: String
+            let scheduled_start_time: String
+            let scheduled_end_time: String?
+            let privacy_level: Int
+            let description: String?
+            let entity_metadata: GuildScheduledEvent.EntityMetadata?
+        }
+        let body = Body(
+            channel_id: channelId,
+            entity_type: entityType.rawValue,
+            name: name,
+            scheduled_start_time: scheduledStartTimeISO8601,
+            scheduled_end_time: scheduledEndTimeISO8601,
+            privacy_level: privacyLevel,
+            description: description,
+            entity_metadata: entityMetadata
+        )
+        return try await http.post(path: "/guilds/\(guildId)/scheduled-events", body: body)
+    }
+
+    public func getGuildScheduledEvent(guildId: Snowflake, eventId: Snowflake, withCounts: Bool = false) async throws -> GuildScheduledEvent {
+        let suffix = withCounts ? "?with_user_count=true" : ""
+        return try await http.get(path: "/guilds/\(guildId)/scheduled-events/\(eventId)\(suffix)")
+    }
+
+    public func modifyGuildScheduledEvent(
+        guildId: Snowflake,
+        eventId: Snowflake,
+        channelId: Snowflake? = nil,
+        entityType: GuildScheduledEvent.EntityType? = nil,
+        name: String? = nil,
+        scheduledStartTimeISO8601: String? = nil,
+        scheduledEndTimeISO8601: String? = nil,
+        privacyLevel: Int? = nil,
+        description: String? = nil,
+        status: GuildScheduledEvent.Status? = nil,
+        entityMetadata: GuildScheduledEvent.EntityMetadata? = nil
+    ) async throws -> GuildScheduledEvent {
+        struct Body: Encodable {
+            let channel_id: Snowflake?
+            let entity_type: Int?
+            let name: String?
+            let scheduled_start_time: String?
+            let scheduled_end_time: String?
+            let privacy_level: Int?
+            let description: String?
+            let status: Int?
+            let entity_metadata: GuildScheduledEvent.EntityMetadata?
+        }
+        let body = Body(
+            channel_id: channelId,
+            entity_type: entityType?.rawValue,
+            name: name,
+            scheduled_start_time: scheduledStartTimeISO8601,
+            scheduled_end_time: scheduledEndTimeISO8601,
+            privacy_level: privacyLevel,
+            description: description,
+            status: status?.rawValue,
+            entity_metadata: entityMetadata
+        )
+        return try await http.patch(path: "/guilds/\(guildId)/scheduled-events/\(eventId)", body: body)
+    }
+
+    public func deleteGuildScheduledEvent(guildId: Snowflake, eventId: Snowflake) async throws {
+        try await http.delete(path: "/guilds/\(guildId)/scheduled-events/\(eventId)")
+    }
+
+    public func listGuildScheduledEventUsers(
+        guildId: Snowflake,
+        eventId: Snowflake,
+        limit: Int? = nil,
+        withMember: Bool = false,
+        before: Snowflake? = nil,
+        after: Snowflake? = nil
+    ) async throws -> [GuildScheduledEventUser] {
+        var path = "/guilds/\(guildId)/scheduled-events/\(eventId)/users"
+        var qs: [String] = []
+        if let limit { qs.append("limit=\(limit)") }
+        if withMember { qs.append("with_member=true") }
+        if let before { qs.append("before=\(before)") }
+        if let after { qs.append("after=\(after)") }
+        if !qs.isEmpty { path += "?" + qs.joined(separator: "&") }
+        return try await http.get(path: path)
+    }
+
+    // MARK: - REST: Stage Instances
+    public func createStageInstance(channelId: Snowflake, topic: String, privacyLevel: Int = 2, guildScheduledEventId: Snowflake? = nil) async throws -> StageInstance {
+        struct Body: Encodable {
+            let channel_id: Snowflake
+            let topic: String
+            let privacy_level: Int
+            let guild_scheduled_event_id: Snowflake?
+        }
+        let body = Body(channel_id: channelId, topic: topic, privacy_level: privacyLevel, guild_scheduled_event_id: guildScheduledEventId)
+        return try await http.post(path: "/stage-instances", body: body)
+    }
+
+    public func getStageInstance(channelId: Snowflake) async throws -> StageInstance {
+        try await http.get(path: "/stage-instances/\(channelId)")
+    }
+
+    public func modifyStageInstance(channelId: Snowflake, topic: String? = nil, privacyLevel: Int? = nil) async throws -> StageInstance {
+        struct Body: Encodable { let topic: String?; let privacy_level: Int? }
+        return try await http.patch(path: "/stage-instances/\(channelId)", body: Body(topic: topic, privacy_level: privacyLevel))
+    }
+
+    public func deleteStageInstance(channelId: Snowflake) async throws {
+        try await http.delete(path: "/stage-instances/\(channelId)")
     }
 }
