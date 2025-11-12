@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning.
 
+## [0.5.0] - 2025-11-11
+
+### Added
+- Embeds: extended model (author, footer icon, thumbnail, image, timestamp, fields).
+- Slash commands: options support; list/delete; bulk overwrite (global and guild).
+- CI: macOS and Windows build/test workflow.
+
+### Changed
+- Gateway: unified URLSession WebSocket adapter across platforms (Windows path enabled).
+- README: bumped to 0.5.0; expanded embeds details; documented full slash command management; Phase 4 core items updated.
+
+### Notes
+- Platform-specific optimizations remain pending.
+
+## [0.4.0] - 2025-11-11
+
+### Added
+- Embeds support:
+  - Send messages with embeds.
+  - Send interaction responses with embeds (type 4 ChannelMessageWithSource).
+- Minimal Slash Commands:
+  - Create global and guild application commands.
+  - Continue to handle interactions via existing gateway path.
+
+### Changed
+- README: Bumped to 0.4.0; documented embeds and minimal slash command creation.
+
+### Notes
+- Full slash command option schemas and typed responders are planned.
+- Voice features remain pending.
+
+## [0.3.0] - 2025-11-11
+
+### Added
+- Phase 3 high-level API foundations:
+  - Callback adapters on `DiscordClient` (`onReady`, `onMessage`, `onGuildCreate`).
+  - Minimal prefix command framework (`CommandRouter`) with registration and argument parsing.
+  - Presence update helper bridging to Gateway presence op.
+  - Intelligent caching start: bounded recent messages per channel in `Cache`.
+
+### Changed
+- Gateway: Implemented resume when `session_id` and `seq` are present; reconnect on opcode 7 and network errors.
+- README: Professionalized header with buttons and badges. Roadmap updated to reflect Phase 3 progress. Version bumped to 0.3.0.
+- Docs: Expanded high-level API section to include callbacks, commands, caching, and presence.
+
+### Notes
+- Slash commands support is planned; prefix commands shipped first for early adopters.
+
 ## [0.2.0] - 2025-11-11
 
 ### Added

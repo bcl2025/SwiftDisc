@@ -7,6 +7,7 @@ public struct GatewayHello: Codable {
 public enum GatewayOpcode: Int, Codable {
     case dispatch = 0
     case heartbeat = 1
+    case presenceUpdate = 3
     case identify = 2
     case resume = 6
     case reconnect = 7
@@ -34,6 +35,7 @@ public enum DiscordEvent: Hashable {
 
 public struct ReadyEvent: Codable, Hashable {
     public let user: User
+    public let session_id: String?
 }
 
 public struct Guild: Codable, Hashable {
@@ -54,13 +56,15 @@ public struct IdentifyPayload: Codable {
     public let properties: IdentifyConnectionProperties
     public let compress: Bool?
     public let large_threshold: Int?
+    public let shard: [Int]?
 
-    public init(token: String, intents: UInt64, properties: IdentifyConnectionProperties = .default, compress: Bool? = nil, large_threshold: Int? = nil) {
+    public init(token: String, intents: UInt64, properties: IdentifyConnectionProperties = .default, compress: Bool? = nil, large_threshold: Int? = nil, shard: [Int]? = nil) {
         self.token = token
         self.intents = intents
         self.properties = properties
         self.compress = compress
         self.large_threshold = large_threshold
+        self.shard = shard
     }
 }
 
@@ -99,4 +103,24 @@ public struct HeartbeatPayload: Codable {
     enum CodingKeys: String, CodingKey {
         case heartbeat = "d"
     }
+}
+
+public struct ResumePayload: Codable {
+    public let token: String
+    public let session_id: String
+    public let seq: Int
+}
+
+public struct PresenceUpdatePayload: Codable {
+    public struct Activity: Codable {
+        public let name: String
+        public let type: Int
+    }
+    public struct Data: Codable {
+        public let since: Int?
+        public let activities: [Activity]
+        public let status: String
+        public let afk: Bool
+    }
+    public let d: Data
 }

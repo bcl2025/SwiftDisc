@@ -5,9 +5,19 @@
 **A Swift-native, cross-platform Discord API library**  
 Build Discord bots and integrations natively in Swift — fast, modern, and fully async.
 
-[![Discord](https://img.shields.io/discord/1010302596351859718?logo=discord&label=Join%20our%20Discord&color=5865F2)](https://discord.com/invite/r4rCAXvb8d)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.com/invite/r4rCAXvb8d)
 [![Swift Version](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift)](https://swift.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/M1tsumi/SwiftDisc?style=social)](https://github.com/M1tsumi/SwiftDisc/stargazers)
+![Platforms](https://img.shields.io/badge/platforms-iOS%20|%20macOS%20|%20tvOS%20|%20watchOS%20|%20Windows-informational)
+![SPM](https://img.shields.io/badge/SPM-supported-success)
+
+<div>
+  <a href="https://github.com/M1tsumi/SwiftDisc/wiki" target="_blank"><img alt="Docs" src="https://img.shields.io/badge/📖%20Docs-Wiki-blue?style=for-the-badge"></a>
+  <a href="#installation"><img alt="Install" src="https://img.shields.io/badge/⚙️%20Install-SPM-orange?style=for-the-badge"></a>
+  <a href="https://github.com/M1tsumi/SwiftDisc/tree/main/Examples" target="_blank"><img alt="Examples" src="https://img.shields.io/badge/🧪%20Examples-Repo-green?style=for-the-badge"></a>
+  <a href="https://discord.com/invite/r4rCAXvb8d" target="_blank"><img alt="Join Discord" src="https://img.shields.io/badge/💬%20Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+</div>
 
 📚 [Features](#features) • ⚙️ [Installation](#installation) • 🚦 [Quick Start](#quick-start) • 🧾 [Documentation](#documentation) • 🗺️ [Roadmap](#roadmap)
 
@@ -47,7 +57,7 @@ Add SwiftDisc to your `Package.swift` dependencies:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/M1tsumi/SwiftDisc.git", from: "0.2.0")
+    .package(url: "https://github.com/M1tsumi/SwiftDisc.git", from: "0.5.0")
 ]
 ```
 
@@ -157,9 +167,14 @@ let user = try await client.getCurrentUser()
 try await client.sendMessage(channelId: "123456789", content: "Hello, Discord!")
 ```
 
+### Examples
+
+- Ping bot: `Examples/PingBot.swift`
+- Prefix commands bot with help: `Examples/CommandsBot.swift`
+
 ## Current Status
 
-**Version:** 0.2.0
+**Version:** 0.5.0
 
 SwiftDisc is in active development. The following components are currently available:
 
@@ -171,6 +186,7 @@ SwiftDisc is in active development. The following components are currently avail
   - Per-route rate limiting with automatic retries and 429 handling
   - Structured error types
   - Initial endpoint coverage: Channels, Guilds, Interactions, Webhooks
+  - Message sending with embeds (title/desc/color/footer/author/thumbnail/image/timestamp/fields)
 
 - **Models**
   - Snowflake identifiers
@@ -178,13 +194,15 @@ SwiftDisc is in active development. The following components are currently avail
 
 - **Gateway**
   - Connection scaffolding
-  - Identify/Heartbeat with ACK tracking
+  - Identify/Heartbeat with ACK tracking, resume/reconnect
+  - Presence updates helper
 
 - **Client API**
   - `getCurrentUser()`
   - `sendMessage()`
   - `loginAndConnect()`
   - `events` AsyncSequence
+  - Slash command management: create/list/delete/bulk overwrite (global/guild), options support
 
 - **Testing**
   - Basic initialization tests
@@ -212,15 +230,17 @@ SwiftDisc's development roadmap is inspired by battle-tested libraries like disc
   - Webhooks
 
 ### Phase 3: High-Level API
-- [ ] AsyncSequence as primary pattern with callback adapters
-- [ ] Command framework (prefix and slash commands)
-- [ ] Intelligent caching layer for users, guilds, channels, and messages
-- [ ] Helper utilities for common bot patterns
+- [x] AsyncSequence as primary pattern with callback adapters
+- [x] Command framework (prefix commands)
+- [x] Initial caching layer for users, guilds, channels, and recent messages
+- [x] Helper utilities for common bot patterns
 
 ### Phase 4: Cross-Platform Excellence
-- [ ] Custom WebSocket adapter for Windows compatibility
-- [ ] Continuous integration for macOS and Windows
+- [x] Custom WebSocket adapter path for Windows compatibility (URLSession-based adapter used across platforms)
+- [x] Continuous integration for macOS and Windows
 - [ ] Platform-specific optimizations
+- [x] Embeds support in message sending and interaction responses
+- [x] Minimal slash commands: create global/guild commands and reply to interactions
 
 ### Phase 5: Production Hardening
 - [ ] Comprehensive mock testing infrastructure

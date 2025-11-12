@@ -36,6 +36,10 @@ Secrets/
 *.profraw
 coverage/
 
+# Local reports (not committed)
+
+Reports/
+
 # Carthage / CocoaPods (not used, but ignore if present)
 Carthage/
 Pods/

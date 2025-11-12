@@ -19,14 +19,10 @@ final class GatewayClient {
         self.configuration = configuration
     }
 
-    func connect(intents: GatewayIntents, eventSink: @escaping (DiscordEvent) -> Void) async throws {
+    func connect(intents: GatewayIntents, shard: (index: Int, total: Int)? = nil, eventSink: @escaping (DiscordEvent) -> Void) async throws {
         let url = URL(string: "\(configuration.gatewayBaseURL.absoluteString)?v=\(configuration.apiVersion)&encoding=json")!
 
-        #if os(Windows)
-        let socket: WebSocketClient = UnavailableWebSocketAdapter()
-        #else
         let socket: WebSocketClient = URLSessionWebSocketAdapter(url: url)
-        #endif
         self.socket = socket
         self.lastIntents = intents
         self.lastEventSink = eventSink
@@ -43,12 +39,20 @@ final class GatewayClient {
         // 2) Start heartbeat loop
         startHeartbeat()
 
-        // 3) Send Identify
-        let identify = IdentifyPayload(token: token, intents: intents.rawValue)
-        let identifyPayload = GatewayPayload(op: .identify, d: identify, s: nil, t: nil)
+        // 3) Send Resume (if possible) or Identify
         let enc = JSONEncoder()
-        let idData = try enc.encode(identifyPayload)
-        try await socket.send(.string(String(decoding: idData, as: UTF8.self)))
+        if let sessionId, let seq {
+            let resume = ResumePayload(token: token, session_id: sessionId, seq: seq)
+            let payload = GatewayPayload(op: .resume, d: resume, s: nil, t: nil)
+            let data = try enc.encode(payload)
+            try await socket.send(.string(String(decoding: data, as: UTF8.self)))
+        } else {
+            let shardArray: [Int]? = shard.map { [$0.index, $0.total] }
+            let identify = IdentifyPayload(token: token, intents: intents.rawValue, properties: .default, compress: nil, large_threshold: nil, shard: shardArray)
+            let payload = GatewayPayload(op: .identify, d: identify, s: nil, t: nil)
+            let data = try enc.encode(payload)
+            try await socket.send(.string(String(decoding: data, as: UTF8.self)))
+        }
 
         // 4) Start read loop
         Task.detached { [weak self] in
@@ -78,6 +82,8 @@ final class GatewayClient {
                         guard let t = opBox.t else { continue }
                         if t == "READY" {
                             if let payload = try? dec.decode(GatewayPayload<ReadyEvent>.self, from: data), let ready = payload.d {
+                                // capture session id for resume
+                                self.sessionId = ready.session_id ?? self.sessionId
                                 eventSink(.ready(ready))
                             }
                         } else if t == "MESSAGE_CREATE" {
@@ -109,14 +115,13 @@ final class GatewayClient {
                         awaitingHeartbeatAck = false
                         break
                     case .reconnect:
-                        // TODO: implement reconnect
+                        await attemptReconnect()
                         break
                     default:
                         break
                     }
                 }
             } catch {
-                // TODO: backoff and reconnect
                 await attemptReconnect()
                 break
             }
@@ -160,9 +165,19 @@ final class GatewayClient {
         // naive backoff
         try? await Task.sleep(nanoseconds: 1_000_000_000)
         do {
-            try await connect(intents: intents, eventSink: sink)
+            try await connect(intents: intents, shard: nil, eventSink: sink)
         } catch {
             // give up for now; future: retry with increasing backoff
+        }
+    }
+
+    // Presence update
+    func setPresence(status: String, activities: [PresenceUpdatePayload.Activity] = [], afk: Bool = false, since: Int? = nil) async {
+        guard let socket = self.socket else { return }
+        let p = PresenceUpdatePayload(d: .init(since: since, activities: activities, status: status, afk: afk))
+        let payload = GatewayPayload(op: .presenceUpdate, d: p, s: nil, t: nil)
+        if let data = try? JSONEncoder().encode(payload) {
+            try? await socket.send(.string(String(decoding: data, as: UTF8.self)))
         }
     }
 }

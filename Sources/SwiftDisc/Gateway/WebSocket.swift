@@ -16,10 +16,16 @@ protocol WebSocketClient {
 
 final class URLSessionWebSocketAdapter: WebSocketClient {
     private let task: URLSessionWebSocketTask
+    private let session: URLSession
 
     init(url: URL) {
         let config = URLSessionConfiguration.default
-        let session = URLSession(configuration: config)
+        config.waitsForConnectivity = true
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        config.httpMaximumConnectionsPerHost = 8
+        self.session = URLSession(configuration: config)
         self.task = session.webSocketTask(with: url)
         self.task.resume()
     }

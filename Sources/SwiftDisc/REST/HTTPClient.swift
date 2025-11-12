@@ -10,7 +10,20 @@ final class HTTPClient {
         self.token = token
         self.configuration = configuration
         let config = URLSessionConfiguration.default
-        config.httpAdditionalHeaders = ["Authorization": "Bot \(token)", "Content-Type": "application/json"]
+        config.waitsForConnectivity = true
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        config.httpMaximumConnectionsPerHost = 8
+        var headers: [AnyHashable: Any] = [
+            "Authorization": "Bot \(token)",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        ]
+        if let existing = config.httpAdditionalHeaders {
+            for (k, v) in existing { headers[k] = v }
+        }
+        config.httpAdditionalHeaders = headers
         self.session = URLSession(configuration: config)
     }
 
@@ -28,6 +41,12 @@ final class HTTPClient {
         let data: Data
         do { data = try JSONEncoder().encode(body) } catch { throw DiscordError.encoding(error) }
         return try await request(method: "PATCH", path: path, body: data)
+    }
+
+    func put<B: Encodable, T: Decodable>(path: String, body: B) async throws -> T {
+        let data: Data
+        do { data = try JSONEncoder().encode(body) } catch { throw DiscordError.encoding(error) }
+        return try await request(method: "PUT", path: path, body: data)
     }
 
     func delete<T: Decodable>(path: String) async throws -> T {

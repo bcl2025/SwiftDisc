@@ -4,6 +4,8 @@ public actor Cache {
     public private(set) var users: [Snowflake: User] = [:]
     public private(set) var channels: [Snowflake: Channel] = [:]
     public private(set) var guilds: [Snowflake: Guild] = [:]
+    public private(set) var recentMessagesByChannel: [Snowflake: [Message]] = [:]
+    private let maxMessagesPerChannel = 50
 
     public init() {}
 
@@ -21,5 +23,14 @@ public actor Cache {
 
     public func upsert(guild: Guild) {
         guilds[guild.id] = guild
+    }
+
+    public func add(message: Message) {
+        var arr = recentMessagesByChannel[message.channel_id] ?? []
+        arr.append(message)
+        if arr.count > maxMessagesPerChannel {
+            arr.removeFirst(arr.count - maxMessagesPerChannel)
+        }
+        recentMessagesByChannel[message.channel_id] = arr
     }
 }
