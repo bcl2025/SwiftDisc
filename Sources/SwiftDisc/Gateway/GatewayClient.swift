@@ -32,8 +32,7 @@ actor GatewayClient {
     func requestGuildMembers(guildId: GuildID, query: String? = nil, limit: Int? = nil, presences: Bool? = nil, userIds: [UserID]? = nil, nonce: String? = nil) async throws {
         let payload = RequestGuildMembers(d: .init(guild_id: guildId, query: query, limit: limit, presences: presences, user_ids: userIds, nonce: nonce))
         let enc = JSONEncoder()
-        let envelope = GatewayPayload(op: .dispatch, d: payload, s: nil, t: nil)
-        let data = try enc.encode(envelope)
+        let data = try enc.encode(payload)
         try await socket?.send(.string(String(decoding: data, as: UTF8.self)))
     }
     private var status: Status = .disconnected
