@@ -11,11 +11,20 @@ public final class DiscordClient {
 
     public let cache = Cache()
 
+    // Extensions/Cogs registry
+    private var loadedExtensions: [SwiftDiscExtension] = []
+
     public var events: AsyncStream<DiscordEvent> { eventStream }
 
     // Phase 3: Callback adapters
     public var onReady: ((ReadyEvent) async -> Void)?
     public var onMessage: ((Message) async -> Void)?
+    public var onMessageUpdate: ((Message) async -> Void)?
+    public var onMessageDelete: ((MessageDelete) async -> Void)?
+    public var onReactionAdd: ((MessageReactionAdd) async -> Void)?
+    public var onReactionRemove: ((MessageReactionRemove) async -> Void)?
+    public var onReactionRemoveAll: ((MessageReactionRemoveAll) async -> Void)?
+    public var onReactionRemoveEmoji: ((MessageReactionRemoveEmoji) async -> Void)?
     public var onGuildCreate: ((Guild) async -> Void)?
 
     // Phase 3: Command framework
@@ -25,6 +34,10 @@ public final class DiscordClient {
     // Phase 4+: Slash command router
     public var slashCommands: SlashCommandRouter?
     public func useSlashCommands(_ router: SlashCommandRouter) { self.slashCommands = router }
+
+    // Autocomplete router
+    public var autocomplete: AutocompleteRouter?
+    public func useAutocomplete(_ router: AutocompleteRouter) { self.autocomplete = router }
 
     public init(token: String, configuration: DiscordConfiguration = .init()) {
         self.token = token
@@ -36,6 +49,18 @@ public final class DiscordClient {
             continuation.onTermination = { _ in }
             localContinuation = continuation
         }
+
+    // MARK: - Extensions/Cogs
+    public func loadExtension(_ ext: SwiftDiscExtension) async {
+        loadedExtensions.append(ext)
+        await ext.onRegister(client: self)
+    }
+
+    public func unloadExtensions() async {
+        let exts = loadedExtensions
+        loadedExtensions.removeAll()
+        for ext in exts { await ext.onUnload(client: self) }
+    }
         self.eventContinuation = localContinuation
     }
     // MARK: - REST: Bulk Messages and Crosspost
@@ -322,6 +347,13 @@ public final class DiscordClient {
         )
         await gateway.setPresence(status: "online", activities: [act], afk: false, since: nil)
     }
+
+    // MARK: - Raw REST passthroughs (coverage helper)
+    public func rawGET<T: Decodable>(_ path: String) async throws -> T { try await http.get(path: path) }
+    public func rawPOST<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.post(path: path, body: body) }
+    public func rawPATCH<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.patch(path: path, body: body) }
+    public func rawPUT<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.put(path: path, body: body) }
+    public func rawDELETE<T: Decodable>(_ path: String) async throws -> T { try await http.delete(path: path) }
 
     // MARK: - Phase 2 REST: Channels
     public func getChannel(id: ChannelID) async throws -> Channel {
@@ -629,6 +661,7 @@ public final class DiscordClient {
         case deferredChannelMessageWithSource = 5
         case deferredUpdateMessage = 6
         case updateMessage = 7
+        case autocompleteResult = 8
         case modal = 9
     }
 
@@ -638,6 +671,21 @@ public final class DiscordClient {
         struct Ack: Decodable {}
         let data = (content == nil && embeds == nil) ? nil : DataObj(content: content, embeds: embeds)
         let body = Body(type: type.rawValue, data: data)
+        let _: Ack = try await http.post(path: "/interactions/\(interactionId)/\(token)/callback", body: body)
+    }
+
+    // Autocomplete result helper (type 8)
+    public struct AutocompleteChoice: Codable {
+        public let name: String
+        public let value: String
+        public init(name: String, value: String) { self.name = name; self.value = value }
+    }
+
+    public func createAutocompleteResponse(interactionId: InteractionID, token: String, choices: [AutocompleteChoice]) async throws {
+        struct DataObj: Encodable { let choices: [AutocompleteChoice] }
+        struct Body: Encodable { let type: Int; let data: DataObj }
+        struct Ack: Decodable {}
+        let body = Body(type: InteractionResponseType.autocompleteResult.rawValue, data: DataObj(choices: choices))
         let _: Ack = try await http.post(path: "/interactions/\(interactionId)/\(token)/callback", body: body)
     }
 

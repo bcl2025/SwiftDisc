@@ -8,4 +8,5 @@ public enum DiscordError: Error {
     case network(Error)
     case gateway(String)
     case cancelled
+    case validation(String)
 }

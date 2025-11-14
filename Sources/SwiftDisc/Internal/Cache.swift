@@ -1,36 +1,77 @@
 import Foundation
 
 public actor Cache {
-    public private(set) var users: [Snowflake: User] = [:]
-    public private(set) var channels: [Snowflake: Channel] = [:]
-    public private(set) var guilds: [Snowflake: Guild] = [:]
-    public private(set) var recentMessagesByChannel: [Snowflake: [Message]] = [:]
-    private let maxMessagesPerChannel = 50
+    public struct Configuration {
+        public var userTTL: TimeInterval?
+        public var channelTTL: TimeInterval?
+        public var guildTTL: TimeInterval?
+        public var maxMessagesPerChannel: Int
+        public init(userTTL: TimeInterval? = nil, channelTTL: TimeInterval? = nil, guildTTL: TimeInterval? = nil, maxMessagesPerChannel: Int = 50) {
+            self.userTTL = userTTL; self.channelTTL = channelTTL; self.guildTTL = guildTTL; self.maxMessagesPerChannel = maxMessagesPerChannel
+        }
+    }
 
-    public init() {}
+    public var configuration: Configuration
+
+    private struct TimedValue<V> { let value: V; let storedAt: Date }
+
+    private var usersTimed: [Snowflake: TimedValue<User>] = [:]
+    private var channelsTimed: [Snowflake: TimedValue<Channel>] = [:]
+    private var guildsTimed: [Snowflake: TimedValue<Guild>] = [:]
+    public private(set) var recentMessagesByChannel: [Snowflake: [Message]] = [:]
+
+    public init(configuration: Configuration = .init()) {
+        self.configuration = configuration
+    }
 
     public func upsert(user: User) {
-        users[user.id] = user
+        usersTimed[user.id] = TimedValue(value: user, storedAt: Date())
     }
 
     public func upsert(channel: Channel) {
-        channels[channel.id] = channel
+        channelsTimed[channel.id] = TimedValue(value: channel, storedAt: Date())
     }
 
     public func removeChannel(id: Snowflake) {
-        channels.removeValue(forKey: id)
+        channelsTimed.removeValue(forKey: id)
     }
 
     public func upsert(guild: Guild) {
-        guilds[guild.id] = guild
+        guildsTimed[guild.id] = TimedValue(value: guild, storedAt: Date())
     }
 
     public func add(message: Message) {
         var arr = recentMessagesByChannel[message.channel_id] ?? []
         arr.append(message)
-        if arr.count > maxMessagesPerChannel {
-            arr.removeFirst(arr.count - maxMessagesPerChannel)
-        }
+        let cap = configuration.maxMessagesPerChannel
+        if arr.count > cap { arr.removeFirst(arr.count - cap) }
         recentMessagesByChannel[message.channel_id] = arr
+    }
+
+    public func removeMessage(id: Snowflake) {
+        for (cid, arr) in recentMessagesByChannel {
+            if let idx = arr.firstIndex(where: { $0.id == id }) {
+                var newArr = arr
+                newArr.remove(at: idx)
+                recentMessagesByChannel[cid] = newArr
+                break
+            }
+        }
+    }
+
+    public func getUser(id: Snowflake) -> User? { pruneIfNeeded(); return usersTimed[id]?.value }
+    public func getChannel(id: Snowflake) -> Channel? { pruneIfNeeded(); return channelsTimed[id]?.value }
+    public func getGuild(id: Snowflake) -> Guild? { pruneIfNeeded(); return guildsTimed[id]?.value }
+
+    public func pruneIfNeeded(now: Date = Date()) {
+        if let ttl = configuration.userTTL {
+            usersTimed = usersTimed.filter { now.timeIntervalSince($0.value.storedAt) < ttl }
+        }
+        if let ttl = configuration.channelTTL {
+            channelsTimed = channelsTimed.filter { now.timeIntervalSince($0.value.storedAt) < ttl }
+        }
+        if let ttl = configuration.guildTTL {
+            guildsTimed = guildsTimed.filter { now.timeIntervalSince($0.value.storedAt) < ttl }
+        }
     }
 }

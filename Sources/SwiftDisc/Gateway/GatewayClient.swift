@@ -234,6 +234,26 @@ actor GatewayClient {
                             if let payload = try? dec.decode(GatewayPayload<Channel>.self, from: data), let channel = payload.d {
                                 eventSink(.channelDelete(channel))
                             }
+                        } else if t == "THREAD_CREATE" {
+                            if let payload = try? dec.decode(GatewayPayload<Channel>.self, from: data), let ch = payload.d {
+                                eventSink(.threadCreate(ch))
+                            }
+                        } else if t == "THREAD_UPDATE" {
+                            if let payload = try? dec.decode(GatewayPayload<Channel>.self, from: data), let ch = payload.d {
+                                eventSink(.threadUpdate(ch))
+                            }
+                        } else if t == "THREAD_DELETE" {
+                            if let payload = try? dec.decode(GatewayPayload<Channel>.self, from: data), let ch = payload.d {
+                                eventSink(.threadDelete(ch))
+                            }
+                        } else if t == "THREAD_MEMBER_UPDATE" {
+                            if let payload = try? dec.decode(GatewayPayload<ThreadMember>.self, from: data), let m = payload.d {
+                                eventSink(.threadMemberUpdate(m))
+                            }
+                        } else if t == "THREAD_MEMBERS_UPDATE" {
+                            if let payload = try? dec.decode(GatewayPayload<ThreadMembersUpdate>.self, from: data), let m = payload.d {
+                                eventSink(.threadMembersUpdate(m))
+                            }
                         } else if t == "INTERACTION_CREATE" {
                             if let payload = try? dec.decode(GatewayPayload<Interaction>.self, from: data), let interaction = payload.d {
                                 eventSink(.interactionCreate(interaction))
@@ -246,6 +266,29 @@ actor GatewayClient {
                             if let payload = try? dec.decode(GatewayPayload<VoiceServerUpdate>.self, from: data), let vsu = payload.d {
                                 eventSink(.voiceServerUpdate(vsu))
                             }
+                        } else if t == "GUILD_SCHEDULED_EVENT_CREATE" {
+                            if let payload = try? dec.decode(GatewayPayload<GuildScheduledEvent>.self, from: data), let ev = payload.d {
+                                eventSink(.guildScheduledEventCreate(ev))
+                            }
+                        } else if t == "GUILD_SCHEDULED_EVENT_UPDATE" {
+                            if let payload = try? dec.decode(GatewayPayload<GuildScheduledEvent>.self, from: data), let ev = payload.d {
+                                eventSink(.guildScheduledEventUpdate(ev))
+                            }
+                        } else if t == "GUILD_SCHEDULED_EVENT_DELETE" {
+                            if let payload = try? dec.decode(GatewayPayload<GuildScheduledEvent>.self, from: data), let ev = payload.d {
+                                eventSink(.guildScheduledEventDelete(ev))
+                            }
+                        } else if t == "GUILD_SCHEDULED_EVENT_USER_ADD" {
+                            if let payload = try? dec.decode(GatewayPayload<GuildScheduledEventUser>.self, from: data), let ev = payload.d {
+                                eventSink(.guildScheduledEventUserAdd(ev))
+                            }
+                        } else if t == "GUILD_SCHEDULED_EVENT_USER_REMOVE" {
+                            if let payload = try? dec.decode(GatewayPayload<GuildScheduledEventUser>.self, from: data), let ev = payload.d {
+                                eventSink(.guildScheduledEventUserRemove(ev))
+                            }
+                        } else {
+                            // Fallback: emit raw event for anything not modeled yet
+                            eventSink(.raw(t, data))
                         }
                     case .heartbeatAck:
                         awaitingHeartbeatAck = false

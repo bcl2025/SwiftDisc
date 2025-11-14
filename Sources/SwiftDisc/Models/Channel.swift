@@ -15,6 +15,7 @@ public struct Channel: Codable, Hashable {
     public let default_forum_layout: Int?
     public let default_auto_archive_duration: Int?
     public let rate_limit_per_user: Int?
+    public let permission_overwrites: [PermissionOverwrite]?
 }
 
 public struct ForumTag: Codable, Hashable {
@@ -28,4 +29,12 @@ public struct ForumTag: Codable, Hashable {
 public struct DefaultReaction: Codable, Hashable {
     public let emoji_id: Snowflake?
     public let emoji_name: String?
+}
+
+public struct PermissionOverwrite: Codable, Hashable {
+    // type: 0 role, 1 member
+    public let id: Snowflake
+    public let type: Int
+    public let allow: String
+    public let deny: String
 }

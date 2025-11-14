@@ -128,6 +128,24 @@ final class HTTPClient {
     // MARK: - Multipart Support
     private func makeBoundary() -> String { "Boundary-" + UUID().uuidString }
 
+    private func guessMimeType(filename: String) -> String {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        switch ext {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "mp4": return "video/mp4"
+        case "mov": return "video/quicktime"
+        case "txt": return "text/plain"
+        case "json": return "application/json"
+        case "pdf": return "application/pdf"
+        case "wav": return "audio/wav"
+        case "mp3": return "audio/mpeg"
+        default: return "application/octet-stream"
+        }
+    }
+
     private func buildMultipartBody(jsonPayload: Data?, files: [FileAttachment], boundary: String) -> Data {
         var body = Data()
         let lineBreak = "\r\n"
@@ -144,7 +162,8 @@ final class HTTPClient {
         for (idx, file) in files.enumerated() {
             append("--\(boundary)\r\n")
             append("Content-Disposition: form-data; name=\"files[\(idx)]\"; filename=\"\(file.filename)\"\r\n")
-            append("Content-Type: application/octet-stream\r\n\r\n")
+            let ct = file.contentType ?? guessMimeType(filename: file.filename)
+            append("Content-Type: \(ct)\r\n\r\n")
             body.append(file.data)
             append(lineBreak)
             if let desc = file.description {
@@ -177,6 +196,12 @@ final class HTTPClient {
             url.appendPathComponent(trimmed)
             var req = URLRequest(url: url)
             req.httpMethod = "POST"
+            // Guardrails: file size limit
+            for file in files {
+                if file.data.count > configuration.maxUploadBytes {
+                    throw DiscordError.validation("File \(file.filename) exceeds maxUploadBytes=\(configuration.maxUploadBytes)")
+                }
+            }
             let boundary = makeBoundary()
             let jsonData = try? jsonBody.map { try JSONEncoder().encode($0) }
             req.httpBody = buildMultipartBody(jsonPayload: jsonData ?? nil, files: files, boundary: boundary)
@@ -231,6 +256,12 @@ final class HTTPClient {
             url.appendPathComponent(trimmed)
             var req = URLRequest(url: url)
             req.httpMethod = "PATCH"
+            // Guardrails: file size limit
+            for file in files ?? [] {
+                if file.data.count > configuration.maxUploadBytes {
+                    throw DiscordError.validation("File \(file.filename) exceeds maxUploadBytes=\(configuration.maxUploadBytes)")
+                }
+            }
             let boundary = makeBoundary()
             let jsonData = try? jsonBody.map { try JSONEncoder().encode($0) }
             let body = buildMultipartBody(jsonPayload: jsonData ?? nil, files: files ?? [], boundary: boundary)

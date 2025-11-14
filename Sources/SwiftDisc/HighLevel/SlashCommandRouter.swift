@@ -46,7 +46,7 @@ public final class SlashCommandRouter {
     }
 
     // MARK: - Path and options resolution
-    private static func computePathAndOptions(from interaction: Interaction) -> (String, [String: String]) {
+    static func computePathAndOptions(from interaction: Interaction) -> (String, [String: String]) {
         guard let data = interaction.data else { return ("", [:]) }
         var components: [String] = [data.name]
         var cursorOptions = data.options ?? []

@@ -57,7 +57,7 @@ import SwiftDisc
 @main
 struct MyFirstBot {
     static func main() async {
-        let token = ProcessInfo.processInfo.environment["DISCORD_TOKEN"] ?? ""
+        let token = ProcessInfo.processInfo.environment["DISCORD_BOT_TOKEN"] ?? ""
         let client = DiscordClient(token: token)
         
         do {
@@ -151,7 +151,7 @@ router.register("help") { context in
 
 **[View Full Example →](https://github.com/M1tsumi/SwiftDisc/tree/main/Examples/CommandsBot.swift)**
 
-### ⚡ Slash Commands Bot
+### ⚡ Slash Commands & Autocomplete
 Discover modern Discord interactions with slash commands and autocomplete.
 
 ```swift
@@ -161,7 +161,22 @@ slash.register("greet") { interaction in
 }
 ```
 
-**[View Full Example →](https://github.com/M1tsumi/SwiftDisc/tree/main/Examples/SlashBot.swift)**
+**[Slash Bot →](https://github.com/M1tsumi/SwiftDisc/tree/main/Examples/SlashBot.swift)**
+
+### 🔎 Autocomplete Provider
+Dynamic suggestions for command options using `AutocompleteRouter`.
+
+**[Autocomplete Bot →](https://github.com/M1tsumi/SwiftDisc/tree/main/Examples/AutocompleteBot.swift)**
+
+### 📎 File Uploads with Embeds
+Multipart uploads with content-type detection and size guardrails.
+
+**[File Upload Bot →](https://github.com/M1tsumi/SwiftDisc/tree/main/Examples/FileUploadBot.swift)**
+
+### 🧵 Threads & Scheduled Events Listener
+Listen to thread lifecycle and guild scheduled events.
+
+**[Threads & Scheduled Events →](https://github.com/M1tsumi/SwiftDisc/tree/main/Examples/ThreadsAndScheduledEventsBot.swift)**
 
 ---
 
@@ -194,6 +209,8 @@ Our [Wiki](https://github.com/M1tsumi/SwiftDisc/wiki) provides in-depth guides f
 - ✅ Resume support for connection recovery
 - ✅ Structured event system with AsyncSequence
 - ✅ Presence updates and status management
+- ✅ Threads and Scheduled Events (create/update/delete, members add/remove)
+- ✅ 100% event visibility via `DiscordEvent.raw(String, Data)` fallback for unmodeled dispatches
 
 ### REST API Coverage
 - ✅ Channels — Create, modify, delete channels and threads
@@ -205,15 +222,19 @@ Our [Wiki](https://github.com/M1tsumi/SwiftDisc/wiki) provides in-depth guides f
 - ✅ Auto Moderation — Configure moderation rules
 - ✅ Scheduled Events — Create and manage server events
 - ✅ Forum Channels — Create threads and posts
+- ✅ Raw coverage helpers: `rawGET/POST/PATCH/PUT/DELETE` for any unsupported endpoint
 
 ### Advanced Features
 - ✅ Per-route rate limit handling with automatic retries
 - ✅ Global rate limit detection and backoff
 - ✅ Sharding support with automatic shard count
 - ✅ Health monitoring and shard management
-- ✅ Typed command routing (prefix and slash)
-- ✅ Rich embed builder
-- ✅ Message components (buttons, select menus)
+- ✅ Typed command routing (prefix and slash) + Autocomplete router
+- ✅ Rich embed builder and message components (buttons, select menus)
+- ✅ File uploads: multipart with content-type detection and configurable guardrails (`maxUploadBytes`)
+- ✅ Advanced caching: configurable TTLs and per-channel message LRU
+- ✅ Extensions/Cogs: simple plugin protocol and `Cog` helper; `DiscordClient.loadExtension(_:)`
+- ✅ Permissions utilities: effective permission calculator with channel overwrites
 
 ---
 
@@ -280,16 +301,16 @@ Get help, share your projects, and connect with other SwiftDisc developers!
 
 We're actively developing SwiftDisc with these priorities:
 
-### Current Focus (v0.8.x)
-- [x] Enhanced slash command builders with option helpers
-- [x] Modal interactions support
-- [x] Message component builders
-- [x] Expanded REST endpoint coverage
+### Current Focus (v0.9.x)
+- [x] Autocomplete
+- [x] File uploads polish (MIME + guardrails)
+- [x] Gateway parity: Threads & Scheduled Events + raw fallback
+- [x] Advanced caching & permissions utilities
+- [x] Extensions/Cogs
 
 ### Future Plans
 - [ ] Voice support (optional module)
-- [ ] Advanced caching strategies
-- [ ] Plugin/extension system
+- [ ] Voice support (send‑only MVP)
 - [ ] Performance optimizations
 
 **Want to influence the roadmap?** Join the [Discord server](https://discord.com/invite/r4rCAXvb8d) and share your ideas!

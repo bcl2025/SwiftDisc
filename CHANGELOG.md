@@ -1,3 +1,37 @@
+## [0.9.0] - 2025-11-13
+
+### Highlights
+- 100% gateway event visibility with explicit thread/scheduled-event handling plus a raw fallback event.
+- REST coverage boosted with raw passthrough helpers (`rawGET/POST/PATCH/PUT/DELETE`).
+- File uploads polished: content-type detection and configurable size guardrails.
+- Autocomplete implemented end-to-end with `AutocompleteRouter` and response helper.
+- Advanced caching (TTL + per-channel LRU), minimal extensions/cogs, and permissions utilities.
+
+### Added
+- Gateway
+  - THREAD_CREATE/UPDATE/DELETE, THREAD_MEMBER_UPDATE, THREAD_MEMBERS_UPDATE
+  - GUILD_SCHEDULED_EVENT_{CREATE,UPDATE,DELETE,USER_ADD,USER_REMOVE}
+  - Catch-all `DiscordEvent.raw(String, Data)` with fallback dispatch in `GatewayClient`.
+- REST
+  - `DiscordClient.rawGET/POST/PATCH/PUT/DELETE` for unwrapped endpoints.
+- Uploads
+  - `FileAttachment.contentType` and MIME inference from filename.
+  - Guardrail via `DiscordConfiguration.maxUploadBytes` (default 100MB) with validation error.
+- Interactions
+  - `InteractionResponseType.autocompleteResult (=8)` and `createAutocompleteResponse(...)`.
+  - `AutocompleteRouter` and wiring in `EventDispatcher`.
+- Caching
+  - `Cache.Configuration` TTLs and message LRU; `removeMessage(id:)`, typed getters, pruning.
+- Extensions
+  - `SwiftDiscExtension` protocol and `Cog` helper; `DiscordClient.loadExtension(_:)`, `unloadExtensions()`.
+- Permissions
+  - `PermissionsUtil.effectivePermissions(...)`; `PermissionOverwrite` added to `Channel`.
+- Examples
+  - `Examples/AutocompleteBot.swift`, `Examples/FileUploadBot.swift`, `Examples/ThreadsAndScheduledEventsBot.swift`, and `Examples/README.md`.
+
+### Changed
+- README updated to document new features, examples, and env var `DISCORD_BOT_TOKEN`.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

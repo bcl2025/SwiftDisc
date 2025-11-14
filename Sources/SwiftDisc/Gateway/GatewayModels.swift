@@ -4,6 +4,14 @@ public struct GatewayHello: Codable {
     public let heartbeat_interval: Int
 }
 
+public struct ThreadMembersUpdate: Codable, Hashable {
+    public let id: ChannelID
+    public let guild_id: GuildID
+    public let member_count: Int
+    public let added_members: [ThreadMember]?
+    public let removed_member_ids: [UserID]?
+}
+
 public struct VoiceState: Codable, Hashable {
     public let guild_id: GuildID?
     public let channel_id: ChannelID?
@@ -65,6 +73,20 @@ public enum DiscordEvent: Hashable {
     case guildEmojisUpdate(GuildEmojisUpdate)
     case guildStickersUpdate(GuildStickersUpdate)
     case guildMembersChunk(GuildMembersChunk)
+    // Catch-all for any gateway dispatch we don't model explicitly
+    case raw(String, Data)
+    // Threads
+    case threadCreate(Channel)
+    case threadUpdate(Channel)
+    case threadDelete(Channel)
+    case threadMemberUpdate(ThreadMember)
+    case threadMembersUpdate(ThreadMembersUpdate)
+    // Scheduled Events
+    case guildScheduledEventCreate(GuildScheduledEvent)
+    case guildScheduledEventUpdate(GuildScheduledEvent)
+    case guildScheduledEventDelete(GuildScheduledEvent)
+    case guildScheduledEventUserAdd(GuildScheduledEventUser)
+    case guildScheduledEventUserRemove(GuildScheduledEventUser)
 }
 
 public struct MessageDelete: Codable, Hashable {

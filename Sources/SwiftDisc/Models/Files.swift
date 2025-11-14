@@ -4,11 +4,13 @@ public struct FileAttachment {
     public let filename: String
     public let data: Data
     public let description: String?
+    public let contentType: String?
 
-    public init(filename: String, data: Data, description: String? = nil) {
+    public init(filename: String, data: Data, description: String? = nil, contentType: String? = nil) {
         self.filename = filename
         self.data = data
         self.description = description
+        self.contentType = contentType
     }
 }
 
