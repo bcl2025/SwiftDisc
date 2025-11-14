@@ -1,3 +1,46 @@
+## [0.10.0] - 2025-11-14
+
+### Highlights
+- Developer Discord Utils: mentions, emoji helpers, timestamps, markdown escaping.
+- Experimental Voice (macOS/iOS): connect flow, UDP IP discovery, protocol select, Session Description, speaking.
+- Zero-dependency encryption: pure-Swift Secretbox (XSalsa20-Poly1305) and RTP sender.
+- Music-bot friendly: Opus-in pipeline with `VoiceAudioSource` and `PipeOpusSource` for stdin piping on macOS.
+ - Components V2 & Polls scaffolding: generic JSON and typed envelopes to use latest Discord features now.
+
+### Added
+- Internal
+  - `Internal/DiscordUtils.swift`: `Mentions`, `EmojiUtils`, `DiscordTimestamp`, `MessageFormat`.
+  - `Internal/JSONValue.swift`: lightweight `JSONValue` for flexible payload composition (Components V2, Polls, future APIs).
+- Voice
+  - `DiscordConfiguration.enableVoiceExperimental` feature flag.
+  - Voice Gateway handshake and UDP IP discovery (Network.framework).
+  - `VoiceGateway`, `VoiceClient`, `VoiceSender` (RTP), `Secretbox` (XSalsa20-Poly1305), `AudioSource` protocol, `PipeOpusSource`.
+  - Public API on `DiscordClient`: `joinVoice`, `leaveVoice`, `playVoiceOpus`, `play(source:)`.
+- Examples
+  - `Examples/VoiceStdin.swift`: stream framed Opus from stdin to a voice channel.
+ - Models
+   - `Models/AdvancedMessagePayloads.swift`: `V2MessagePayload`, `PollPayload` typed envelopes.
+ - REST
+   - Components V2 helpers: `postMessage(channelId:payload:)` (generic), `sendComponentsV2Message(channelId:payload:)` (typed envelope).
+   - Poll helpers: `createPollMessage(channelId:content:poll:...)` (generic) and overload `createPollMessage(channelId:payload:...)` (typed envelope).
+   - Localization: `setCommandLocalizations(applicationId:commandId:nameLocalizations:descriptionLocalizations:)`.
+   - Forwarding: `forwardMessageByReference(targetChannelId:sourceChannelId:messageId:)` (portable forward using message reference).
+   - Application-scoped resources: `post/patch/deleteApplicationResource(...)` generic helpers.
+   - App Emoji wrappers: `createAppEmoji(...)`, `updateAppEmoji(...)`, `deleteAppEmoji(...)` (typed top-level, flexible internals).
+   - UserApps wrappers: `createUserAppResource(...)`, `updateUserAppResource(...)`, `deleteUserAppResource(...)`.
+
+### Changed
+- README: expanded Voice section (usage, requirements, macOS ffmpeg piping, iOS guidance) and Developer Utilities section.
+- README: added Components V2 (generic + typed envelope) examples.
+- README: added Polls (generic + typed envelope) examples.
+- README: added Localization and Forwarding usage.
+- README: added Generic Application Resources, App Emoji, and UserApps usage.
+- `advaithpr.ts`: updated feature matrix (Components V2, Polls, Localization, Forwarding, App Emoji, UserApps -> Yes).
+
+### Notes
+- Voice is send-only; input must be Opus packets (48kHz, ~20ms). No external dependencies were added.
+- iOS cannot spawn ffmpeg; provide Opus from your app/backend.
+
 ## [0.9.0] - 2025-11-13
 
 ### Highlights

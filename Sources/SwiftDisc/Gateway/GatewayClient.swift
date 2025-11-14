@@ -47,6 +47,20 @@ actor GatewayClient {
         self.configuration = configuration
     }
 
+    // VOICE_STATE_UPDATE (op 4)
+    func updateVoiceState(guildId: GuildID, channelId: ChannelID?, selfMute: Bool, selfDeaf: Bool) async {
+        struct VoiceStateUpdateData: Codable {
+            let guild_id: GuildID
+            let channel_id: ChannelID?
+            let self_mute: Bool
+            let self_deaf: Bool
+        }
+        let payload = GatewayPayload(op: .voiceStateUpdate, d: VoiceStateUpdateData(guild_id: guildId, channel_id: channelId, self_mute: selfMute, self_deaf: selfDeaf), s: nil, t: nil)
+        if let data = try? JSONEncoder().encode(payload) {
+            try? await socket?.send(.string(String(decoding: data, as: UTF8.self)))
+        }
+    }
+
     func connect(intents: GatewayIntents, shard: (index: Int, total: Int)? = nil, eventSink: @escaping (DiscordEvent) -> Void) async throws {
         guard let url = URL(string: "\(configuration.gatewayBaseURL.absoluteString)?v=\(configuration.apiVersion)&encoding=json") else {
             throw DiscordError.gateway("Invalid gateway URL")

@@ -4,7 +4,10 @@ public final class DiscordClient {
     public let token: String
     private let http: HTTPClient
     private let gateway: GatewayClient
+    private let configuration: DiscordConfiguration
     private let dispatcher = EventDispatcher()
+    private let voiceClient: VoiceClient?
+    private var currentUserId: UserID?
 
     private var eventStream: AsyncStream<DiscordEvent>!
     private var eventContinuation: AsyncStream<DiscordEvent>.Continuation!
@@ -43,6 +46,18 @@ public final class DiscordClient {
         self.token = token
         self.http = HTTPClient(token: token, configuration: configuration)
         self.gateway = GatewayClient(token: token, configuration: configuration)
+        self.configuration = configuration
+        if configuration.enableVoiceExperimental {
+            self.voiceClient = VoiceClient(
+                token: token,
+                configuration: configuration,
+                sendVoiceStateUpdate: { [weak gateway] (guildId, channelId, selfMute, selfDeaf) async in
+                    await gateway?.updateVoiceState(guildId: guildId, channelId: channelId, selfMute: selfMute, selfDeaf: selfDeaf)
+                }
+            )
+        } else {
+            self.voiceClient = nil
+        }
 
         var localContinuation: AsyncStream<DiscordEvent>.Continuation!
         self.eventStream = AsyncStream<DiscordEvent> { continuation in
@@ -149,6 +164,88 @@ public final class DiscordClient {
 
     public func deleteFollowupMessage(applicationId: ApplicationID, interactionToken: String, messageId: MessageID) async throws {
         try await http.delete(path: "/webhooks/\(applicationId)/\(interactionToken)/messages/\(messageId)")
+    }
+
+    // MARK: - Localization helpers (Application Commands)
+    public func setCommandLocalizations(applicationId: ApplicationID, commandId: ApplicationCommandID, nameLocalizations: [String: String]?, descriptionLocalizations: [String: String]?) async throws -> ApplicationCommand {
+        struct Body: Encodable { let name_localizations: [String: String]?; let description_localizations: [String: String]? }
+        return try await http.patch(path: "/applications/\(applicationId)/commands/\(commandId)", body: Body(name_localizations: nameLocalizations, description_localizations: descriptionLocalizations))
+    }
+
+    // MARK: - Forwarding helper (via message reference)
+    public func forwardMessageByReference(targetChannelId: ChannelID, sourceChannelId: ChannelID, messageId: MessageID) async throws -> Message {
+        // Posts a message in targetChannelId that references the source message
+        let payload: [String: JSONValue] = [
+            "message_reference": .object([
+                "channel_id": .string(String(describing: sourceChannelId)),
+                "message_id": .string(String(describing: messageId))
+            ])
+        ]
+        return try await http.post(path: "/channels/\(targetChannelId)/messages", body: payload)
+    }
+
+    // MARK: - Components V2 & Polls (generic helpers)
+    // Send a message with arbitrary payload (e.g., Components V2). Use JSONValue to construct the payload safely.
+    public func postMessage(channelId: ChannelID, payload: [String: JSONValue]) async throws -> Message {
+        try await http.post(path: "/channels/\(channelId)/messages", body: payload)
+    }
+
+    // Convenience for Poll messages: merges content and `poll` object into message payload
+    public func createPollMessage(channelId: ChannelID, content: String? = nil, poll: [String: JSONValue], flags: Int? = nil, components: [JSONValue]? = nil) async throws -> Message {
+        var body: [String: JSONValue] = [
+            "poll": .object(poll)
+        ]
+        if let content { body["content"] = .string(content) }
+        if let flags { body["flags"] = .int(flags) }
+        if let components { body["components"] = .array(components) }
+        return try await http.post(path: "/channels/\(channelId)/messages", body: body)
+    }
+
+    // MARK: - Components V2 (typed envelope)
+    public func sendComponentsV2Message(channelId: ChannelID, payload: V2MessagePayload) async throws -> Message {
+        try await http.post(path: "/channels/\(channelId)/messages", body: payload.asJSON())
+    }
+
+    // MARK: - Polls (typed envelope)
+    public func createPollMessage(channelId: ChannelID, payload: PollPayload, content: String? = nil, flags: Int? = nil, components: [JSONValue]? = nil) async throws -> Message {
+        var body: [String: JSONValue] = [
+            "poll": .object(payload.pollJSON())
+        ]
+        if let content { body["content"] = .string(content) }
+        if let flags { body["flags"] = .int(flags) }
+        if let components { body["components"] = .array(components) }
+        return try await http.post(path: "/channels/\(channelId)/messages", body: body)
+    }
+
+    // MARK: - App Emoji (typed top-level + JSONValue internals)
+    public func createAppEmoji(applicationId: ApplicationID, name: String, imageBase64: String, options: [String: JSONValue]? = nil) async throws -> JSONValue {
+        var payload: [String: JSONValue] = [
+            "name": .string(name),
+            "image": .string(imageBase64)
+        ]
+        if let options { for (k, v) in options { payload[k] = v } }
+        return try await postApplicationResource(applicationId: applicationId, relativePath: "app-emojis", payload: payload)
+    }
+
+    public func updateAppEmoji(applicationId: ApplicationID, emojiId: String, updates: [String: JSONValue]) async throws -> JSONValue {
+        try await patchApplicationResource(applicationId: applicationId, relativePath: "app-emojis/\(emojiId)", payload: updates)
+    }
+
+    public func deleteAppEmoji(applicationId: ApplicationID, emojiId: String) async throws {
+        try await deleteApplicationResource(applicationId: applicationId, relativePath: "app-emojis/\(emojiId)")
+    }
+
+    // MARK: - UserApps (typed wrapper names over generic helpers)
+    public func createUserAppResource(applicationId: ApplicationID, relativePath: String, payload: [String: JSONValue]) async throws -> JSONValue {
+        try await postApplicationResource(applicationId: applicationId, relativePath: relativePath, payload: payload)
+    }
+
+    public func updateUserAppResource(applicationId: ApplicationID, relativePath: String, payload: [String: JSONValue]) async throws -> JSONValue {
+        try await patchApplicationResource(applicationId: applicationId, relativePath: relativePath, payload: payload)
+    }
+
+    public func deleteUserAppResource(applicationId: ApplicationID, relativePath: String) async throws {
+        try await deleteApplicationResource(applicationId: applicationId, relativePath: relativePath)
     }
 
     // Guild widget settings
@@ -348,12 +445,55 @@ public final class DiscordClient {
         await gateway.setPresence(status: "online", activities: [act], afk: false, since: nil)
     }
 
+    public func joinVoice(guildId: GuildID, channelId: ChannelID, selfMute: Bool = false, selfDeaf: Bool = false) async throws {
+        guard let voiceClient else { throw VoiceError.disabled }
+        try await voiceClient.joinVoiceChannel(guildId: guildId, channelId: channelId, selfMute: selfMute, selfDeaf: selfDeaf)
+    }
+
+    public func leaveVoice(guildId: GuildID) async throws {
+        guard let voiceClient else { throw VoiceError.disabled }
+        try await voiceClient.leaveVoiceChannel(guildId: guildId)
+    }
+
+    public func playVoiceOpus(guildId: GuildID, data: Data) async throws {
+        guard let voiceClient else { throw VoiceError.disabled }
+        try await voiceClient.playOpusFrames(guildId: guildId, pcmOrOpusData: data)
+    }
+
+    // MARK: - Internal voice wiring (called by EventDispatcher)
+    func _internalSetCurrentUserId(_ id: UserID) async {
+        self.currentUserId = id
+    }
+
+    func _internalOnVoiceStateUpdate(_ state: VoiceState) async {
+        guard let voiceClient else { return }
+        await voiceClient.onVoiceStateUpdate(state)
+    }
+
+    func _internalOnVoiceServerUpdate(_ vsu: VoiceServerUpdate) async {
+        guard let voiceClient, let userId = self.currentUserId else { return }
+        await voiceClient.onVoiceServerUpdate(vsu, botUserId: userId)
+    }
+
     // MARK: - Raw REST passthroughs (coverage helper)
     public func rawGET<T: Decodable>(_ path: String) async throws -> T { try await http.get(path: path) }
     public func rawPOST<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.post(path: path, body: body) }
     public func rawPATCH<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.patch(path: path, body: body) }
     public func rawPUT<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.put(path: path, body: body) }
     public func rawDELETE<T: Decodable>(_ path: String) async throws -> T { try await http.delete(path: path) }
+
+    // MARK: - Generic Application-scoped helpers (for userApps/appEmoji and future endpoints)
+    public func postApplicationResource(applicationId: ApplicationID, relativePath: String, payload: [String: JSONValue]) async throws -> JSONValue {
+        try await http.post(path: "/applications/\(applicationId)/\(relativePath)", body: payload)
+    }
+
+    public func patchApplicationResource(applicationId: ApplicationID, relativePath: String, payload: [String: JSONValue]) async throws -> JSONValue {
+        try await http.patch(path: "/applications/\(applicationId)/\(relativePath)", body: payload)
+    }
+
+    public func deleteApplicationResource(applicationId: ApplicationID, relativePath: String) async throws {
+        try await http.delete(path: "/applications/\(applicationId)/\(relativePath)")
+    }
 
     // MARK: - Phase 2 REST: Channels
     public func getChannel(id: ChannelID) async throws -> Channel {
@@ -505,6 +645,12 @@ public final class DiscordClient {
         try await http.delete(path: "/guilds/\(guildId)/roles/\(roleId)")
     }
 
+    // Application Command default permissions (perms v2 related)
+    public func setApplicationCommandDefaultPermissions(applicationId: ApplicationID, commandId: ApplicationCommandID, defaultMemberPermissions: String?) async throws -> ApplicationCommand {
+        struct Body: Encodable { let default_member_permissions: String? }
+        return try await http.patch(path: "/applications/\(applicationId)/commands/\(commandId)", body: Body(default_member_permissions: defaultMemberPermissions))
+    }
+
     // Bans
     public func listGuildBans(guildId: GuildID) async throws -> [GuildBan] {
         try await http.get(path: "/guilds/\(guildId)/bans")
@@ -525,6 +671,22 @@ public final class DiscordClient {
     public func modifyGuildMember(guildId: GuildID, userId: UserID, nick: String? = nil, roles: [RoleID]? = nil) async throws -> GuildMember {
         struct Body: Encodable { let nick: String?; let roles: [RoleID]? }
         return try await http.patch(path: "/guilds/\(guildId)/members/\(userId)", body: Body(nick: nick, roles: roles))
+    }
+
+    // Timeout (communication_disabled_until)
+    public func setMemberTimeout(guildId: GuildID, userId: UserID, until date: Date) async throws -> GuildMember {
+        struct Body: Encodable {
+            let communication_disabled_until: String
+        }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let body = Body(communication_disabled_until: iso.string(from: date))
+        return try await http.patch(path: "/guilds/\(guildId)/members/\(userId)", body: body)
+    }
+
+    public func clearMemberTimeout(guildId: GuildID, userId: UserID) async throws -> GuildMember {
+        struct Body: Encodable { let communication_disabled_until: String? }
+        return try await http.patch(path: "/guilds/\(guildId)/members/\(userId)", body: Body(communication_disabled_until: nil))
     }
 
     // Guild settings

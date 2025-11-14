@@ -5,6 +5,7 @@ actor EventDispatcher {
         switch event {
         case .ready(let info):
             await client.cache.upsert(user: info.user)
+            await client._internalSetCurrentUserId(info.user.id)
             if let onReady = client.onReady { await onReady(info) }
         case .messageCreate(let msg):
             await client.cache.upsert(user: msg.author)
@@ -43,8 +44,10 @@ actor EventDispatcher {
             } else if let s = client.slashCommands {
                 await s.handle(interaction: interaction, client: client)
             }
-        case .voiceStateUpdate, .voiceServerUpdate:
-            break
+        case .voiceStateUpdate(let state):
+            await client._internalOnVoiceStateUpdate(state)
+        case .voiceServerUpdate(let vsu):
+            await client._internalOnVoiceServerUpdate(vsu)
         }
         client.eventContinuation?.yield(event)
     }
