@@ -85,6 +85,55 @@ struct MyFirstBot {
 }
 ```
 
+#### App Emoji (typed top-level)
+
+```swift
+// Create (image should be data URI string, e.g. "data:image/png;base64,<...>")
+let created = try await client.createAppEmoji(
+  applicationId: appId,
+  name: "party",
+  imageBase64: "data:image/png;base64,....",
+  options: ["roles": .array([])] // optional extras
+)
+
+// Update
+let updated = try await client.updateAppEmoji(
+  applicationId: appId,
+  emojiId: "1234567890",
+  updates: ["name": .string("party_blob")] 
+)
+
+// Delete
+try await client.deleteAppEmoji(
+  applicationId: appId,
+  emojiId: "1234567890"
+)
+```
+
+#### UserApps (typed wrapper names)
+
+```swift
+// Create resource under your application scope
+let res = try await client.createUserAppResource(
+  applicationId: appId,
+  relativePath: "directory/listings",
+  payload: ["title": .string("My Awesome App"), "enabled": .bool(true)]
+)
+
+// Update resource
+let upd = try await client.updateUserAppResource(
+  applicationId: appId,
+  relativePath: "directory/listings/abc",
+  payload: ["enabled": .bool(false)]
+)
+
+// Delete resource
+try await client.deleteUserAppResource(
+  applicationId: appId,
+  relativePath: "directory/listings/abc"
+)
+```
+
 **That's it!** You now have a working Discord bot. 🎉
 
 ---
@@ -224,6 +273,17 @@ Our [Wiki](https://github.com/M1tsumi/SwiftDisc/wiki) provides in-depth guides f
 - ✅ Forum Channels — Create threads and posts
 - ✅ Raw coverage helpers: `rawGET/POST/PATCH/PUT/DELETE` for any unsupported endpoint
 
+#### Member Timeouts
+
+```swift
+// Timeout a member until a specific ISO8601 timestamp
+let in10Min = Date().addingTimeInterval(10 * 60)
+let updated: GuildMember = try await client.setMemberTimeout(guildId: guildId, userId: userId, until: in10Min)
+
+// Clear timeout
+let cleared: GuildMember = try await client.clearMemberTimeout(guildId: guildId, userId: userId)
+```
+
 ### Advanced Features
 - ✅ Per-route rate limit handling with automatic retries
 - ✅ Global rate limit detection and backoff
@@ -235,6 +295,128 @@ Our [Wiki](https://github.com/M1tsumi/SwiftDisc/wiki) provides in-depth guides f
 - ✅ Advanced caching: configurable TTLs and per-channel message LRU
 - ✅ Extensions/Cogs: simple plugin protocol and `Cog` helper; `DiscordClient.loadExtension(_:)`
 - ✅ Permissions utilities: effective permission calculator with channel overwrites
+
+#### Components V2 (generic payload)
+
+Use `postMessage(channelId:payload:)` with `JSONValue` to send Components V2 while keeping SwiftDisc zero-dependency and future-proof. Paste the payload from the Discord docs.
+
+```swift
+// Example skeleton – replace with the latest Components V2 JSON from docs
+let payload: [String: JSONValue] = [
+  "content": .string("Hello with Components V2"),
+  "flags": .int(1 << 15), // if docs require enabling V2 via flag
+  "components": .array([
+    .object(["type": .int(1), "children": .array([ /* ... */ ])])
+  ])
+]
+let msg = try await client.postMessage(channelId: channelId, payload: payload)
+```
+
+Typed envelope helper:
+
+```swift
+let v2 = V2MessagePayload(
+  content: "Hello with V2",
+  flags: 1 << 15, // if required by docs
+  components: [
+    .object(["type": .int(1), "children": .array([ /* ... */ ])])
+  ]
+)
+let msg = try await client.sendComponentsV2Message(channelId: channelId, payload: v2)
+```
+
+#### Polls (generic payload)
+
+Use `createPollMessage(channelId:content:poll:flags:components:)` with a `poll` object conforming to the Poll Resource schema.
+
+```swift
+// Example skeleton – replace with the Poll Resource JSON from docs
+let poll: [String: JSONValue] = [
+  "question": .object(["text": .string("Your favorite language?")]),
+  "answers": .array([
+    .object(["answer_id": .int(1), "poll_media": .object(["text": .string("Swift")])]),
+    .object(["answer_id": .int(2), "poll_media": .object(["text": .string("Kotlin")])])
+  ]),
+  "allow_multiple": .bool(false),
+  "duration": .int(600) // seconds
+]
+let msg = try await client.createPollMessage(channelId: channelId, content: "Vote now!", poll: poll)
+```
+
+Typed envelope helper:
+
+```swift
+let pollPayload = PollPayload(
+  question: "Your favorite language?",
+  answers: ["Swift", "Kotlin"],
+  durationSeconds: 600,
+  allowMultiple: false
+)
+let msg = try await client.createPollMessage(channelId: channelId, payload: pollPayload, content: "Vote now!")
+```
+
+#### Localization (Application Commands)
+
+Update command name/description localizations:
+
+```swift
+let updated = try await client.setCommandLocalizations(
+  applicationId: appId,
+  commandId: cmdId,
+  nameLocalizations: [
+    "en-US": "ping",
+    "ja": "ピン"
+  ],
+  descriptionLocalizations: [
+    "en-US": "Check latency",
+    "ja": "レイテンシーを確認"
+  ]
+)
+```
+
+#### Forwarding
+
+Post a message in another channel that references an existing message (portable forward):
+
+```swift
+let forwarded = try await client.forwardMessageByReference(
+  targetChannelId: targetChannelId,
+  sourceChannelId: sourceChannelId,
+  messageId: messageId
+)
+```
+
+#### Generic Application Resources (UserApps/App Emoji)
+
+Use these helpers to call application-scoped endpoints with `JSONValue` payloads. This keeps SwiftDisc current as Discord evolves.
+
+```swift
+// POST /applications/{appId}/{relativePath}
+let createRes = try await client.postApplicationResource(
+  applicationId: appId,
+  relativePath: "some/feature",
+  payload: ["key": .string("value")]
+)
+
+// PATCH /applications/{appId}/{relativePath}
+let patchRes = try await client.patchApplicationResource(
+  applicationId: appId,
+  relativePath: "some/feature/id",
+  payload: ["enabled": .bool(true)]
+)
+
+// DELETE /applications/{appId}/{relativePath}
+try await client.deleteApplicationResource(
+  applicationId: appId,
+  relativePath: "some/feature/id"
+)
+```
+
+#### Developer Utilities
+- ✅ Mentions: `Mentions.user(_:)`, `Mentions.channel(_:)`, `Mentions.role(_:)`, `Mentions.slashCommand(name:id:)`
+- ✅ Emoji helpers: `EmojiUtils.custom(name:id:animated:)`
+- ✅ Timestamps: `DiscordTimestamp.format(date:style:)`, `format(unixSeconds:style:)`
+- ✅ Escaping: `MessageFormat.escapeSpecialCharacters(_:)`
 
 ---
 
@@ -314,6 +496,72 @@ We're actively developing SwiftDisc with these priorities:
 - [ ] Performance optimizations
 
 **Want to influence the roadmap?** Join the [Discord server](https://discord.com/invite/r4rCAXvb8d) and share your ideas!
+
+
+
+## 🔊 Voice (Experimental)
+
+Initial voice support is available behind a configuration flag. This is a send-only implementation that connects to Discord Voice, performs UDP IP discovery, negotiates `xsalsa20_poly1305`, and can transmit Opus frames (no external dependencies required).
+
+Enable and use:
+
+```swift
+let config = DiscordConfiguration(enableVoiceExperimental: true)
+let client = DiscordClient(token: token, configuration: config)
+
+try await client.joinVoice(guildId: guildId, channelId: channelId)
+
+// Option A: Push individual Opus packets (20ms @ 48kHz)
+try await client.playVoiceOpus(guildId: guildId, data: opusPacket)
+
+// Option B: Stream from a VoiceAudioSource
+struct MySource: VoiceAudioSource {
+    func nextFrame() async throws -> OpusFrame? { /* return OpusFrame(data:packet,durationMs:20) */ }
+}
+try await client.play(source: MySource(), guildId: guildId)
+
+try await client.leaveVoice(guildId: guildId)
+```
+
+What’s included:
+
+- Voice Gateway handshake (Hello → Identify → Ready → Heartbeat)
+- UDP IP discovery (Network.framework on Apple platforms)
+- Protocol selection (xsalsa20_poly1305)
+- Session Description key handling
+- RTP packetization + pure-Swift Secretbox encryption (no SwiftPM deps)
+- Speaking flag management
+
+Requirements:
+
+- Input must be Opus-encoded packets at 48kHz (20ms recommended). SwiftDisc does not bundle an Opus encoder or media demuxer to maintain zero dependencies.
+
+macOS streaming with ffmpeg (no Swift dependencies):
+
+Use an external `ffmpeg` (system-installed) to demux/encode your source (YouTube, SoundCloud, etc.) to raw Opus packets and pipe them into SwiftDisc. Implement a small wrapper to length-prefix packets (u32 LE) or use a helper that outputs framed Opus.
+
+Example framing expected by `PipeOpusSource`:
+
+- Frame format: `[u32 little-endian length][<length> bytes]` repeated.
+
+Use `PipeOpusSource`:
+
+```swift
+import Foundation
+
+let source = PipeOpusSource(handle: FileHandle.standardInput)
+try await client.play(source: source, guildId: guildId)
+```
+
+Then run your bot and feed framed Opus via stdin. For example, you can create a small CLI that transforms `ffmpeg` output to the framed format and pipe to the bot. This keeps SwiftDisc zero-dependency.
+
+iOS guidance:
+
+- iOS cannot spawn `ffmpeg`. Provide Opus packets from your app/backend over your own transport (e.g., HTTPS/WebSocket) and feed them to a `VoiceAudioSource`.
+
+Security and correctness:
+
+- SwiftDisc vendors a pure-Swift Secretbox (XSalsa20-Poly1305) implementation with Poly1305 MAC and Salsa20 core. Nonce derivation follows the Discord RTP header convention. We recommend validating with your own test vectors as part of your CI.
 
 
 
