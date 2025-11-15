@@ -15,10 +15,10 @@ public actor Cache {
 
     private struct TimedValue<V> { let value: V; let storedAt: Date }
 
-    private var usersTimed: [Snowflake: TimedValue<User>] = [:]
-    private var channelsTimed: [Snowflake: TimedValue<Channel>] = [:]
-    private var guildsTimed: [Snowflake: TimedValue<Guild>] = [:]
-    public private(set) var recentMessagesByChannel: [Snowflake: [Message]] = [:]
+    private var usersTimed: [UserID: TimedValue<User>] = [:]
+    private var channelsTimed: [ChannelID: TimedValue<Channel>] = [:]
+    private var guildsTimed: [GuildID: TimedValue<Guild>] = [:]
+    public private(set) var recentMessagesByChannel: [ChannelID: [Message]] = [:]
 
     public init(configuration: Configuration = .init()) {
         self.configuration = configuration
@@ -32,7 +32,7 @@ public actor Cache {
         channelsTimed[channel.id] = TimedValue(value: channel, storedAt: Date())
     }
 
-    public func removeChannel(id: Snowflake) {
+    public func removeChannel(id: ChannelID) {
         channelsTimed.removeValue(forKey: id)
     }
 
@@ -59,9 +59,9 @@ public actor Cache {
         }
     }
 
-    public func getUser(id: Snowflake) -> User? { pruneIfNeeded(); return usersTimed[id]?.value }
-    public func getChannel(id: Snowflake) -> Channel? { pruneIfNeeded(); return channelsTimed[id]?.value }
-    public func getGuild(id: Snowflake) -> Guild? { pruneIfNeeded(); return guildsTimed[id]?.value }
+    public func getUser(id: UserID) -> User? { pruneIfNeeded(); return usersTimed[id]?.value }
+    public func getChannel(id: ChannelID) -> Channel? { pruneIfNeeded(); return channelsTimed[id]?.value }
+    public func getGuild(id: GuildID) -> Guild? { pruneIfNeeded(); return guildsTimed[id]?.value }
 
     public func pruneIfNeeded(now: Date = Date()) {
         if let ttl = configuration.userTTL {

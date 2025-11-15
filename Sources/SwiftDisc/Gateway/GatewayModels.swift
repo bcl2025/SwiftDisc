@@ -136,22 +136,14 @@ public struct ReadyEvent: Codable, Hashable {
     public let session_id: String?
 }
 
-public struct Guild: Codable, Hashable {
-    public let id: GuildID
-    public let name: String
-}
+// Note: Guild model lives in Sources/SwiftDisc/Models/Guild.swift
 
 public struct GuildDelete: Codable, Hashable {
     public let id: GuildID
     public let unavailable: Bool?
 }
 
-public struct Interaction: Codable, Hashable {
-    public let id: InteractionID
-    public let type: Int
-    public let guild_id: GuildID?
-    public let channel_id: ChannelID?
-}
+// Note: Interaction model lives in Sources/SwiftDisc/Models/Interaction.swift
 
 // MARK: - Guild Member Events
 public struct GuildMemberAdd: Codable, Hashable {

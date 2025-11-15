@@ -19,7 +19,7 @@ public enum Attachment {}
 public typealias AttachmentID = Snowflake<Attachment>
 public enum OverwriteTarget {}
 public typealias OverwriteID = Snowflake<OverwriteTarget>
-public enum Interaction {}
-public typealias InteractionID = Snowflake<Interaction>
+public enum InteractionTag {}
+public typealias InteractionID = Snowflake<InteractionTag>
 public enum ApplicationCommandTag {}
 public typealias ApplicationCommandID = Snowflake<ApplicationCommandTag>

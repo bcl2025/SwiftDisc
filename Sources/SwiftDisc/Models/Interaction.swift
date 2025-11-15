@@ -16,7 +16,7 @@ public struct Interaction: Codable, Hashable {
             public let options: [Option]?
             public let focused: Bool?
         }
-        public let id: Snowflake<Interaction>?
+        public let id: InteractionID?
         public let name: String
         public let type: Int?
         public let options: [Option]?
