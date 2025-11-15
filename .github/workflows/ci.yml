@@ -19,15 +19,11 @@ jobs:
         run: swift build -v
       - name: Test
         run: swift test -v --enable-code-coverage
-      - name: Export coverage
-        run: |
-          mkdir -p coverage
-          xcrun llvm-cov export -format=lcov .build/debug/SwiftDiscPackageTests.xctest/Contents/MacOS/SwiftDiscPackageTests -instr-profile .build/debug/codecov/default.profdata > coverage/lcov.info || true
-      - name: Upload coverage artifact
+      - name: Upload raw coverage directory
         uses: actions/upload-artifact@v4
         with:
           name: coverage-macos
-          path: coverage/lcov.info
+          path: .build/debug/codecov
 
   build-and-test-windows:
     runs-on: windows-latest
@@ -37,8 +33,8 @@ jobs:
         uses: compnerd/gha-setup-swift@main
         with:
           source: swift.org
-          swift-version: swift-5.9-release
-          swift-build: 5.9-RELEASE
+          swift-version: swift-5.10-release
+          swift-build: 5.10-RELEASE
       - name: Build
         shell: pwsh
         run: swift build -v

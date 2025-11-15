@@ -66,7 +66,15 @@ actor GatewayClient {
             throw DiscordError.gateway("Invalid gateway URL")
         }
 
+        // Select a WebSocket adapter appropriate for the current platform.
+        // URLSessionWebSocketTask is available on Apple platforms and Linux (via FoundationNetworking),
+        // but may be unavailable or incomplete on Windows toolchains. Fall back to an
+        // UnavailableWebSocketAdapter on unsupported platforms so Windows builds succeed.
+        #if canImport(FoundationNetworking) || os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         let socket: WebSocketClient = URLSessionWebSocketAdapter(url: url)
+        #else
+        let socket: WebSocketClient = UnavailableWebSocketAdapter()
+        #endif
         self.socket = socket
         self.lastIntents = intents
         self.lastEventSink = eventSink
