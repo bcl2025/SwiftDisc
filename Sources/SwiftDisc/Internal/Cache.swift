@@ -48,7 +48,7 @@ public actor Cache {
         recentMessagesByChannel[message.channel_id] = arr
     }
 
-    public func removeMessage(id: Snowflake) {
+    public func removeMessage(id: MessageID) {
         for (cid, arr) in recentMessagesByChannel {
             if let idx = arr.firstIndex(where: { $0.id == id }) {
                 var newArr = arr

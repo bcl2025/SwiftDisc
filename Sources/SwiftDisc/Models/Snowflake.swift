@@ -15,11 +15,16 @@ public typealias RoleID = Snowflake<Role>
 public typealias EmojiID = Snowflake<Emoji>
 public enum Application {}
 public typealias ApplicationID = Snowflake<Application>
-public enum Attachment {}
-public typealias AttachmentID = Snowflake<Attachment>
+public enum AttachmentTag {}
+public typealias AttachmentID = Snowflake<AttachmentTag>
 public enum OverwriteTarget {}
 public typealias OverwriteID = Snowflake<OverwriteTarget>
 public enum InteractionTag {}
 public typealias InteractionID = Snowflake<InteractionTag>
 public enum ApplicationCommandTag {}
 public typealias ApplicationCommandID = Snowflake<ApplicationCommandTag>
+
+// Additional IDs
+public typealias ForumTagID = Snowflake<ForumTag>
+public enum GuildScheduledEventTag {}
+public typealias GuildScheduledEventID = Snowflake<GuildScheduledEventTag>

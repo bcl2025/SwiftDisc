@@ -1,7 +1,7 @@
 import Foundation
 
 public struct Attachment: Codable, Hashable {
-    public let id: Snowflake
+    public let id: AttachmentID
     public let filename: String
     public let size: Int?
     public let url: String

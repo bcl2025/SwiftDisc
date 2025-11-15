@@ -19,21 +19,21 @@ public struct Channel: Codable, Hashable {
 }
 
 public struct ForumTag: Codable, Hashable {
-    public let id: Snowflake
+    public let id: ForumTagID
     public let name: String
     public let moderated: Bool?
-    public let emoji_id: Snowflake?
+    public let emoji_id: EmojiID?
     public let emoji_name: String?
 }
 
 public struct DefaultReaction: Codable, Hashable {
-    public let emoji_id: Snowflake?
+    public let emoji_id: EmojiID?
     public let emoji_name: String?
 }
 
 public struct PermissionOverwrite: Codable, Hashable {
     // type: 0 role, 1 member
-    public let id: Snowflake
+    public let id: OverwriteID
     public let type: Int
     public let allow: String
     public let deny: String

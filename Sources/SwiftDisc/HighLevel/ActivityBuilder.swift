@@ -47,10 +47,11 @@ public struct ActivityBuilder {
     public func secrets(join: String? = nil, spectate: String? = nil, match: String? = nil) -> ActivityBuilder { var c = self; c.secretJoin = join; c.secretSpectate = spectate; c.secretMatch = match; return c }
 
     public func build() -> PresenceUpdatePayload.Activity {
-        let ts = (start == nil && end == nil) ? nil : .init(start: start, end: end)
-        let assets = (largeImage == nil && largeText == nil && smallImage == nil && smallText == nil) ? nil : .init(large_image: largeImage, large_text: largeText, small_image: smallImage, small_text: smallText)
-        let party = (partyId == nil && partySize == nil) ? nil : .init(id: partyId, size: partySize)
-        let secrets = (secretJoin == nil && secretSpectate == nil && secretMatch == nil) ? nil : .init(join: secretJoin, spectate: secretSpectate, match: secretMatch)
-        return .init(name: name, type: type, state: state, details: details, timestamps: ts, assets: assets, buttons: buttons, party: party, secrets: secrets)
+        let ts = (start == nil && end == nil) ? nil : PresenceUpdatePayload.Activity.Timestamps(start: start, end: end)
+        let assets = (largeImage == nil && largeText == nil && smallImage == nil && smallText == nil) ? nil : PresenceUpdatePayload.Activity.Assets(large_image: largeImage, large_text: largeText, small_image: smallImage, small_text: smallText)
+        let party = (partyId == nil && partySize == nil) ? nil : PresenceUpdatePayload.Activity.Party(id: partyId, size: partySize)
+        let secrets = (secretJoin == nil && secretSpectate == nil && secretMatch == nil) ? nil : PresenceUpdatePayload.Activity.Secrets(join: secretJoin, spectate: secretSpectate, match: secretMatch)
+        return PresenceUpdatePayload.Activity(name: name, type: type, state: state, details: details, timestamps: ts, assets: assets, buttons: buttons, party: party, secrets: secrets)
     }
 }
+

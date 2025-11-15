@@ -1,8 +1,8 @@
 import Foundation
 
 public struct ThreadMember: Codable, Hashable {
-    public let id: Snowflake?
-    public let user_id: Snowflake?
+    public let id: ChannelID?
+    public let user_id: UserID?
     public let join_timestamp: String
     public let flags: Int
     public let member: GuildMember?

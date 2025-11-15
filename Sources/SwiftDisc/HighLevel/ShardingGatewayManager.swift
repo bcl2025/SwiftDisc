@@ -339,13 +339,10 @@ public actor ShardingGatewayManager {
                     guard let self else { return }
                     Task {
                         let latency = await handle.client.heartbeatLatency()
-                        // Track guild IDs on GUILD_CREATE for distribution verification
                         if case let .guildCreate(guild) = event {
-                            var set = self.guildsByShard[shardId] ?? []
-                            set.insert(guild.id.rawValue)
-                            self.guildsByShard[shardId] = set
+                            await self.recordGuild(shardId: shardId, guildId: guild.id.rawValue)
                         }
-                        self.eventContinuation.yield(ShardedEvent(shardId: shardId, event: event, receivedAt: Date(), shardLatency: latency))
+                        await self.emitEvent(ShardedEvent(shardId: shardId, event: event, receivedAt: Date(), shardLatency: latency))
                     }
                 }
                 log(.info, "Shard \(shardId) connected successfully")
@@ -449,5 +446,16 @@ public actor ShardingGatewayManager {
                 log(.debug, "  …and \(mismatches.count - 5) more mismatches")
             }
         }
+    }
+
+    // MARK: - Actor-isolated helpers
+    private func recordGuild(shardId: Int, guildId: String) {
+        var set = guildsByShard[shardId] ?? []
+        set.insert(guildId)
+        guildsByShard[shardId] = set
+    }
+
+    private func emitEvent(_ ev: ShardedEvent) async {
+        eventContinuation.yield(ev)
     }
 }
