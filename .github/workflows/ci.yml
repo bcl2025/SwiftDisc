@@ -38,7 +38,7 @@ jobs:
           if-no-files-found: warn
 
   build-and-test-windows:
-    runs-on: windows-2022
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v4
       - name: Install Swift 5.10.1
