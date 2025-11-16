@@ -17,9 +17,9 @@ struct Secretbox: VoiceEncryptor {
         let polyKey = Array(ks[0..<32])
         // Ciphertext = plaintext XOR keystream starting at offset 32
         var cipher = Data(count: plaintext.count)
-        plaintext.withUnsafeBytes { p in
+        plaintext.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
             for i in 0..<plaintext.count {
-                cipher[i] = p[i] ^ ks[32 + i]
+                cipher[i] = buffer.load(fromByteOffset: i, as: UInt8.self) ^ ks[32 + i]
             }
         }
         // Compute Poly1305 MAC over ciphertext
@@ -36,11 +36,20 @@ struct Secretbox: VoiceEncryptor {
 
 private func rotateLeft(_ x: UInt32, by n: UInt32) -> UInt32 { (x << n) | (x >> (32 - n)) }
 
-private func quarterRound(_ y0: inout UInt32, _ y1: inout UInt32, _ y2: inout UInt32, _ y3: inout UInt32) {
+// Quarter round operating on indices into the state array to avoid overlapping inout access
+private func quarterRound(_ x: inout [UInt32], _ a: Int, _ b: Int, _ c: Int, _ d: Int) {
+    var y0 = x[a]
+    var y1 = x[b]
+    var y2 = x[c]
+    var y3 = x[d]
     y1 ^= rotateLeft(y0 &+ y3, by: 7)
     y2 ^= rotateLeft(y1 &+ y0, by: 9)
     y3 ^= rotateLeft(y2 &+ y1, by: 13)
     y0 ^= rotateLeft(y3 &+ y2, by: 18)
+    x[a] = y0
+    x[b] = y1
+    x[c] = y2
+    x[d] = y3
 }
 
 private func littleEndian(_ b: ArraySlice<UInt8>) -> UInt32 {
@@ -84,15 +93,15 @@ private func hsalsa20(nonce16 n: [UInt8], key k: [UInt8]) -> [UInt8] {
     var x = state
     for _ in 0..<10 {
         // column rounds
-        quarterRound(&x[0], &x[4], &x[8], &x[12])
-        quarterRound(&x[5], &x[9], &x[13], &x[1])
-        quarterRound(&x[10], &x[14], &x[2], &x[6])
-        quarterRound(&x[15], &x[3], &x[7], &x[11])
+        quarterRound(&x, 0, 4, 8, 12)
+        quarterRound(&x, 5, 9, 13, 1)
+        quarterRound(&x, 10, 14, 2, 6)
+        quarterRound(&x, 15, 3, 7, 11)
         // row rounds
-        quarterRound(&x[0], &x[1], &x[2], &x[3])
-        quarterRound(&x[5], &x[6], &x[7], &x[4])
-        quarterRound(&x[10], &x[11], &x[8], &x[9])
-        quarterRound(&x[15], &x[12], &x[13], &x[14])
+        quarterRound(&x, 0, 1, 2, 3)
+        quarterRound(&x, 5, 6, 7, 4)
+        quarterRound(&x, 10, 11, 8, 9)
+        quarterRound(&x, 15, 12, 13, 14)
     }
 
     var out = [UInt8]()
@@ -135,15 +144,15 @@ private func salsa20Block(key: [UInt8], nonce: [UInt8], counter: UInt64) -> [UIn
 
     var x = state
     for _ in 0..<10 {
-        quarterRound(&x[0], &x[4], &x[8], &x[12])
-        quarterRound(&x[5], &x[9], &x[13], &x[1])
-        quarterRound(&x[10], &x[14], &x[2], &x[6])
-        quarterRound(&x[15], &x[3], &x[7], &x[11])
+        quarterRound(&x, 0, 4, 8, 12)
+        quarterRound(&x, 5, 9, 13, 1)
+        quarterRound(&x, 10, 14, 2, 6)
+        quarterRound(&x, 15, 3, 7, 11)
 
-        quarterRound(&x[0], &x[1], &x[2], &x[3])
-        quarterRound(&x[5], &x[6], &x[7], &x[4])
-        quarterRound(&x[10], &x[11], &x[8], &x[9])
-        quarterRound(&x[15], &x[12], &x[13], &x[14])
+        quarterRound(&x, 0, 1, 2, 3)
+        quarterRound(&x, 5, 6, 7, 4)
+        quarterRound(&x, 10, 11, 8, 9)
+        quarterRound(&x, 15, 12, 13, 14)
     }
 
     var out = [UInt8](repeating: 0, count: 64)

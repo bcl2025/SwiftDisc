@@ -1,6 +1,6 @@
 import Foundation
 
-public enum JSONValue: Encodable {
+public enum JSONValue: Codable {
     case string(String)
     case number(Double)
     case int(Int)
@@ -8,6 +8,18 @@ public enum JSONValue: Encodable {
     case object([String: JSONValue])
     case array([JSONValue])
     case null
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() { self = .null; return }
+        if let v = try? container.decode(String.self) { self = .string(v); return }
+        if let v = try? container.decode(Int.self) { self = .int(v); return }
+        if let v = try? container.decode(Double.self) { self = .number(v); return }
+        if let v = try? container.decode(Bool.self) { self = .bool(v); return }
+        if let v = try? container.decode([String: JSONValue].self) { self = .object(v); return }
+        if let v = try? container.decode([JSONValue].self) { self = .array(v); return }
+        self = .null
+    }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()

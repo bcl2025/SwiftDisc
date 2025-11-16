@@ -1,8 +1,8 @@
 import Foundation
 
 public struct Invite: Codable, Hashable {
-    public struct InviteGuild: Codable, Hashable { public let id: Snowflake; public let name: String? }
-    public struct InviteChannel: Codable, Hashable { public let id: Snowflake; public let name: String?; public let type: Int? }
+    public struct InviteGuild: Codable, Hashable { public let id: GuildID; public let name: String? }
+    public struct InviteChannel: Codable, Hashable { public let id: ChannelID; public let name: String?; public let type: Int? }
 
     public let code: String
     public let guild: InviteGuild?

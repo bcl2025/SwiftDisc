@@ -28,3 +28,23 @@ public typealias ApplicationCommandID = Snowflake<ApplicationCommandTag>
 public typealias ForumTagID = Snowflake<ForumTag>
 public enum GuildScheduledEventTag {}
 public typealias GuildScheduledEventID = Snowflake<GuildScheduledEventTag>
+public enum StageInstanceTag {}
+public typealias StageInstanceID = Snowflake<StageInstanceTag>
+
+public enum WebhookTag {}
+public typealias WebhookID = Snowflake<WebhookTag>
+
+public enum StickerTag {}
+public typealias StickerID = Snowflake<StickerTag>
+public enum StickerPackTag {}
+public typealias StickerPackID = Snowflake<StickerPackTag>
+public enum SKUTag {}
+public typealias SKUID = Snowflake<SKUTag>
+public enum BannerAssetTag {}
+public typealias BannerAssetID = Snowflake<BannerAssetTag>
+
+public enum AuditLogEntryTag {}
+public typealias AuditLogEntryID = Snowflake<AuditLogEntryTag>
+
+public enum AutoModerationRuleTag {}
+public typealias AutoModerationRuleID = Snowflake<AutoModerationRuleTag>

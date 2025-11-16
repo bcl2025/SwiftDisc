@@ -342,33 +342,37 @@ actor GatewayClient {
     }
 
     private func startHeartbeat() {
-        let intervalNs = UInt64(heartbeatIntervalMs) * 1_000_000
         heartbeatTask?.cancel()
-        heartbeatTask = Task.detached { [weak self] in
+        heartbeatTask = Task { [weak self] in
             guard let self else { return }
-            // Initial jitter before first heartbeat per Discord guidance
-            let jitterNs = UInt64.random(in: 0..<UInt64(self.heartbeatIntervalMs)) * 1_000_000
-            try? await Task.sleep(nanoseconds: jitterNs)
-            while !Task.isCancelled {
-                // If previous heartbeat wasn't ACKed, reconnect
-                if self.awaitingHeartbeatAck {
-                    await self.attemptReconnect()
-                    break
-                }
-                do {
-                    let hb: HeartbeatPayload = self.seq
-                    let payload = GatewayPayload(op: .heartbeat, d: hb, s: nil, t: nil)
-                    let data = try JSONEncoder().encode(payload)
-                    try await self.socket?.send(.string(String(decoding: data, as: UTF8.self)))
-                    self.awaitingHeartbeatAck = true
-                    self.lastHeartbeatSentAt = Date()
-                } catch {
-                    await self.attemptReconnect()
-                    break
-                }
-                // Wait full interval before next heartbeat and ACK check
-                try? await Task.sleep(nanoseconds: intervalNs)
+            await self.runHeartbeatLoop()
+        }
+    }
+
+    private func runHeartbeatLoop() async {
+        let intervalNs = UInt64(heartbeatIntervalMs) * 1_000_000
+        // Initial jitter before first heartbeat per Discord guidance
+        let jitterNs = UInt64.random(in: 0..<UInt64(heartbeatIntervalMs)) * 1_000_000
+        try? await Task.sleep(nanoseconds: jitterNs)
+        while !Task.isCancelled {
+            // If previous heartbeat wasn't ACKed, reconnect
+            if awaitingHeartbeatAck {
+                await attemptReconnect()
+                break
             }
+            do {
+                let hb: HeartbeatPayload = seq
+                let payload = GatewayPayload(op: .heartbeat, d: hb, s: nil, t: nil)
+                let data = try JSONEncoder().encode(payload)
+                try await socket?.send(.string(String(decoding: data, as: UTF8.self)))
+                awaitingHeartbeatAck = true
+                lastHeartbeatSentAt = Date()
+            } catch {
+                await attemptReconnect()
+                break
+            }
+            // Wait full interval before next heartbeat and ACK check
+            try? await Task.sleep(nanoseconds: intervalNs)
         }
     }
 

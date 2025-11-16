@@ -64,6 +64,8 @@ public final class DiscordClient {
             continuation.onTermination = { _ in }
             localContinuation = continuation
         }
+        self.eventContinuation = localContinuation
+    }
 
     // MARK: - Extensions/Cogs
     public func loadExtension(_ ext: SwiftDiscExtension) async {
@@ -75,8 +77,6 @@ public final class DiscordClient {
         let exts = loadedExtensions
         loadedExtensions.removeAll()
         for ext in exts { await ext.onUnload(client: self) }
-    }
-        self.eventContinuation = localContinuation
     }
     // MARK: - REST: Bulk Messages and Crosspost
     // Bulk delete messages (2-100, not older than 14 days)
@@ -475,6 +475,11 @@ public final class DiscordClient {
         await voiceClient.onVoiceServerUpdate(vsu, botUserId: userId)
     }
 
+    // MARK: - Internal event emission (called by EventDispatcher)
+    func _internalEmitEvent(_ event: DiscordEvent) {
+        eventContinuation?.yield(event)
+    }
+
     // MARK: - Raw REST passthroughs (coverage helper)
     public func rawGET<T: Decodable>(_ path: String) async throws -> T { try await http.get(path: path) }
     public func rawPOST<B: Encodable, T: Decodable>(_ path: String, body: B) async throws -> T { try await http.post(path: path, body: body) }
@@ -612,7 +617,8 @@ public final class DiscordClient {
     // type: 0 = role, 1 = member
     public func editChannelPermission(channelId: ChannelID, overwriteId: OverwriteID, type: Int, allow: String? = nil, deny: String? = nil) async throws {
         struct Body: Encodable { let allow: String?; let deny: String?; let type: Int }
-        let _: EmptyResponse = try await http.put(path: "/channels/\(channelId)/permissions/\(overwriteId)", body: Body(allow: allow, deny: deny, type: type))
+        struct EmptyDecodable: Decodable {}
+        let _: EmptyDecodable = try await http.put(path: "/channels/\(channelId)/permissions/\(overwriteId)", body: Body(allow: allow, deny: deny, type: type))
     }
 
     public func deleteChannelPermission(channelId: ChannelID, overwriteId: OverwriteID) async throws {
@@ -622,7 +628,8 @@ public final class DiscordClient {
     // Channel typing indicator
     public func triggerTypingIndicator(channelId: ChannelID) async throws {
         struct Empty: Encodable {}
-        let _: EmptyResponse = try await http.post(path: "/channels/\(channelId)/typing", body: Empty())
+        struct EmptyDecodable: Decodable {}
+        let _: EmptyDecodable = try await http.post(path: "/channels/\(channelId)/typing", body: Empty())
     }
 
     // Roles
@@ -952,7 +959,7 @@ public final class DiscordClient {
         return try await http.post(path: "/applications/\(appId)/commands", body: command)
     }
 
-    public func createGuildCommand(guildId: Snowflake, _ command: ApplicationCommandCreate) async throws -> ApplicationCommand {
+    public func createGuildCommand(guildId: GuildID, _ command: ApplicationCommandCreate) async throws -> ApplicationCommand {
         let appId = try await getCurrentUser().id
         return try await http.post(path: "/applications/\(appId)/guilds/\(guildId)/commands", body: command)
     }
@@ -962,17 +969,17 @@ public final class DiscordClient {
         return try await http.get(path: "/applications/\(appId)/commands")
     }
 
-    public func listGuildCommands(guildId: Snowflake) async throws -> [ApplicationCommand] {
+    public func listGuildCommands(guildId: GuildID) async throws -> [ApplicationCommand] {
         let appId = try await getCurrentUser().id
         return try await http.get(path: "/applications/\(appId)/guilds/\(guildId)/commands")
     }
 
-    public func deleteGlobalCommand(commandId: Snowflake) async throws {
+    public func deleteGlobalCommand(commandId: ApplicationCommandID) async throws {
         let appId = try await getCurrentUser().id
         try await http.delete(path: "/applications/\(appId)/commands/\(commandId)")
     }
 
-    public func deleteGuildCommand(guildId: Snowflake, commandId: Snowflake) async throws {
+    public func deleteGuildCommand(guildId: GuildID, commandId: ApplicationCommandID) async throws {
         let appId = try await getCurrentUser().id
         try await http.delete(path: "/applications/\(appId)/guilds/\(guildId)/commands/\(commandId)")
     }
@@ -982,23 +989,23 @@ public final class DiscordClient {
         return try await http.put(path: "/applications/\(appId)/commands", body: commands)
     }
 
-    public func bulkOverwriteGuildCommands(guildId: Snowflake, _ commands: [ApplicationCommandCreate]) async throws -> [ApplicationCommand] {
+    public func bulkOverwriteGuildCommands(guildId: GuildID, _ commands: [ApplicationCommandCreate]) async throws -> [ApplicationCommand] {
         let appId = try await getCurrentUser().id
         return try await http.put(path: "/applications/\(appId)/guilds/\(guildId)/commands", body: commands)
     }
 
     // MARK: - Phase 2 REST: Webhooks
-    public func createWebhook(channelId: Snowflake, name: String) async throws -> Webhook {
+    public func createWebhook(channelId: ChannelID, name: String) async throws -> Webhook {
         struct Body: Encodable { let name: String }
         return try await http.post(path: "/channels/\(channelId)/webhooks", body: Body(name: name))
     }
 
-    public func executeWebhook(webhookId: Snowflake, token: String, content: String) async throws -> Message {
+    public func executeWebhook(webhookId: WebhookID, token: String, content: String) async throws -> Message {
         struct Body: Encodable { let content: String }
         return try await http.post(path: "/webhooks/\(webhookId)/\(token)", body: Body(content: content))
     }
 
-    public func createChannelInvite(channelId: Snowflake, maxAge: Int? = nil, maxUses: Int? = nil, temporary: Bool? = nil, unique: Bool? = nil) async throws -> Invite {
+    public func createChannelInvite(channelId: ChannelID, maxAge: Int? = nil, maxUses: Int? = nil, temporary: Bool? = nil, unique: Bool? = nil) async throws -> Invite {
         struct Body: Encodable {
             let max_age: Int?
             let max_uses: Int?
@@ -1009,11 +1016,11 @@ public final class DiscordClient {
         return try await http.post(path: "/channels/\(channelId)/invites", body: body)
     }
 
-    public func listChannelInvites(channelId: Snowflake) async throws -> [Invite] {
+    public func listChannelInvites(channelId: ChannelID) async throws -> [Invite] {
         try await http.get(path: "/channels/\(channelId)/invites")
     }
 
-    public func listGuildInvites(guildId: Snowflake) async throws -> [Invite] {
+    public func listGuildInvites(guildId: GuildID) async throws -> [Invite] {
         try await http.get(path: "/guilds/\(guildId)/invites")
     }
 
@@ -1030,31 +1037,31 @@ public final class DiscordClient {
         try await http.get(path: "/guilds/templates/\(code)")
     }
 
-    public func listGuildTemplates(guildId: Snowflake) async throws -> [Template] {
+    public func listGuildTemplates(guildId: GuildID) async throws -> [Template] {
         try await http.get(path: "/guilds/\(guildId)/templates")
     }
 
-    public func createGuildTemplate(guildId: Snowflake, name: String, description: String? = nil) async throws -> Template {
+    public func createGuildTemplate(guildId: GuildID, name: String, description: String? = nil) async throws -> Template {
         struct Body: Encodable { let name: String; let description: String? }
         return try await http.post(path: "/guilds/\(guildId)/templates", body: Body(name: name, description: description))
     }
 
-    public func modifyGuildTemplate(guildId: Snowflake, code: String, name: String? = nil, description: String? = nil) async throws -> Template {
+    public func modifyGuildTemplate(guildId: GuildID, code: String, name: String? = nil, description: String? = nil) async throws -> Template {
         struct Body: Encodable { let name: String?; let description: String? }
         return try await http.patch(path: "/guilds/\(guildId)/templates/\(code)", body: Body(name: name, description: description))
     }
 
-    public func syncGuildTemplate(guildId: Snowflake, code: String) async throws -> Template {
+    public func syncGuildTemplate(guildId: GuildID, code: String) async throws -> Template {
         struct Empty: Encodable {}
         return try await http.put(path: "/guilds/\(guildId)/templates/\(code)", body: Empty())
     }
 
-    public func deleteGuildTemplate(guildId: Snowflake, code: String) async throws {
+    public func deleteGuildTemplate(guildId: GuildID, code: String) async throws {
         try await http.delete(path: "/guilds/\(guildId)/templates/\(code)")
     }
 
     // MARK: - REST: Stickers
-    public func getSticker(id: Snowflake) async throws -> Sticker {
+    public func getSticker(id: StickerID) async throws -> Sticker {
         try await http.get(path: "/stickers/\(id)")
     }
 
@@ -1064,22 +1071,22 @@ public final class DiscordClient {
         return resp.sticker_packs
     }
 
-    public func listGuildStickers(guildId: Snowflake) async throws -> [Sticker] {
+    public func listGuildStickers(guildId: GuildID) async throws -> [Sticker] {
         try await http.get(path: "/guilds/\(guildId)/stickers")
     }
 
-    public func getGuildSticker(guildId: Snowflake, stickerId: Snowflake) async throws -> Sticker {
+    public func getGuildSticker(guildId: GuildID, stickerId: StickerID) async throws -> Sticker {
         try await http.get(path: "/guilds/\(guildId)/stickers/\(stickerId)")
     }
 
     // MARK: - REST: Forum helpers
     public func createForumThread(
-        channelId: Snowflake,
+        channelId: ChannelID,
         name: String,
         content: String? = nil,
         embeds: [Embed]? = nil,
         components: [MessageComponent]? = nil,
-        appliedTagIds: [Snowflake]? = nil,
+        appliedTagIds: [ForumTagID]? = nil,
         autoArchiveDuration: Int? = nil,
         rateLimitPerUser: Int? = nil
     ) async throws -> Channel {
@@ -1089,7 +1096,7 @@ public final class DiscordClient {
             let auto_archive_duration: Int?
             let rate_limit_per_user: Int?
             let message: Msg?
-            let applied_tags: [Snowflake]?
+            let applied_tags: [ForumTagID]?
         }
         let message = (content == nil && embeds == nil && components == nil) ? nil : Msg(content: content, embeds: embeds, components: components)
         let body = Body(
@@ -1104,10 +1111,10 @@ public final class DiscordClient {
 
     // MARK: - REST: Audit Logs
     public func getGuildAuditLog(
-        guildId: Snowflake,
-        userId: Snowflake? = nil,
+        guildId: GuildID,
+        userId: UserID? = nil,
         actionType: Int? = nil,
-        before: Snowflake? = nil,
+        before: AuditLogEntryID? = nil,
         limit: Int? = nil
     ) async throws -> AuditLog {
         var path = "/guilds/\(guildId)/audit-logs"
@@ -1121,24 +1128,24 @@ public final class DiscordClient {
     }
 
     // MARK: - REST: AutoModeration
-    public func listAutoModerationRules(guildId: Snowflake) async throws -> [AutoModerationRule] {
+    public func listAutoModerationRules(guildId: GuildID) async throws -> [AutoModerationRule] {
         try await http.get(path: "/guilds/\(guildId)/auto-moderation/rules")
     }
 
-    public func getAutoModerationRule(guildId: Snowflake, ruleId: Snowflake) async throws -> AutoModerationRule {
+    public func getAutoModerationRule(guildId: GuildID, ruleId: AutoModerationRuleID) async throws -> AutoModerationRule {
         try await http.get(path: "/guilds/\(guildId)/auto-moderation/rules/\(ruleId)")
     }
 
     public func createAutoModerationRule(
-        guildId: Snowflake,
+        guildId: GuildID,
         name: String,
         eventType: Int,
         triggerType: Int,
         triggerMetadata: AutoModerationRule.TriggerMetadata? = nil,
         actions: [AutoModerationRule.Action],
-        enabled: Bool? = nil,
-        exemptRoles: [Snowflake]? = nil,
-        exemptChannels: [Snowflake]? = nil
+        enabled: Bool = true,
+        exemptRoles: [RoleID]? = nil,
+        exemptChannels: [ChannelID]? = nil
     ) async throws -> AutoModerationRule {
         struct Body: Encodable {
             let name: String
@@ -1147,8 +1154,8 @@ public final class DiscordClient {
             let trigger_metadata: AutoModerationRule.TriggerMetadata?
             let actions: [AutoModerationRule.Action]
             let enabled: Bool?
-            let exempt_roles: [Snowflake]?
-            let exempt_channels: [Snowflake]?
+            let exempt_roles: [RoleID]?
+            let exempt_channels: [ChannelID]?
         }
         let body = Body(
             name: name,
@@ -1164,15 +1171,15 @@ public final class DiscordClient {
     }
 
     public func modifyAutoModerationRule(
-        guildId: Snowflake,
-        ruleId: Snowflake,
+        guildId: GuildID,
+        ruleId: AutoModerationRuleID,
         name: String? = nil,
         eventType: Int? = nil,
         triggerMetadata: AutoModerationRule.TriggerMetadata? = nil,
         actions: [AutoModerationRule.Action]? = nil,
         enabled: Bool? = nil,
-        exemptRoles: [Snowflake]? = nil,
-        exemptChannels: [Snowflake]? = nil
+        exemptRoles: [RoleID]? = nil,
+        exemptChannels: [ChannelID]? = nil
     ) async throws -> AutoModerationRule {
         struct Body: Encodable {
             let name: String?
@@ -1180,8 +1187,8 @@ public final class DiscordClient {
             let trigger_metadata: AutoModerationRule.TriggerMetadata?
             let actions: [AutoModerationRule.Action]?
             let enabled: Bool?
-            let exempt_roles: [Snowflake]?
-            let exempt_channels: [Snowflake]?
+            let exempt_roles: [RoleID]?
+            let exempt_channels: [ChannelID]?
         }
         let body = Body(
             name: name,
@@ -1195,19 +1202,19 @@ public final class DiscordClient {
         return try await http.patch(path: "/guilds/\(guildId)/auto-moderation/rules/\(ruleId)", body: body)
     }
 
-    public func deleteAutoModerationRule(guildId: Snowflake, ruleId: Snowflake) async throws {
+    public func deleteAutoModerationRule(guildId: GuildID, ruleId: AutoModerationRuleID) async throws {
         try await http.delete(path: "/guilds/\(guildId)/auto-moderation/rules/\(ruleId)")
     }
 
     // MARK: - REST: Scheduled Events
-    public func listGuildScheduledEvents(guildId: Snowflake, withCounts: Bool = false) async throws -> [GuildScheduledEvent] {
+    public func listGuildScheduledEvents(guildId: GuildID, withCounts: Bool = false) async throws -> [GuildScheduledEvent] {
         let suffix = withCounts ? "?with_user_count=true" : ""
         return try await http.get(path: "/guilds/\(guildId)/scheduled-events\(suffix)")
     }
 
     public func createGuildScheduledEvent(
-        guildId: Snowflake,
-        channelId: Snowflake?,
+        guildId: GuildID,
+        channelId: ChannelID?,
         entityType: GuildScheduledEvent.EntityType,
         name: String,
         scheduledStartTimeISO8601: String,
@@ -1217,7 +1224,7 @@ public final class DiscordClient {
         entityMetadata: GuildScheduledEvent.EntityMetadata? = nil
     ) async throws -> GuildScheduledEvent {
         struct Body: Encodable {
-            let channel_id: Snowflake?
+            let channel_id: ChannelID?
             let entity_type: Int
             let name: String
             let scheduled_start_time: String
@@ -1239,15 +1246,15 @@ public final class DiscordClient {
         return try await http.post(path: "/guilds/\(guildId)/scheduled-events", body: body)
     }
 
-    public func getGuildScheduledEvent(guildId: Snowflake, eventId: Snowflake, withCounts: Bool = false) async throws -> GuildScheduledEvent {
+    public func getGuildScheduledEvent(guildId: GuildID, eventId: GuildScheduledEventID, withCounts: Bool = false) async throws -> GuildScheduledEvent {
         let suffix = withCounts ? "?with_user_count=true" : ""
         return try await http.get(path: "/guilds/\(guildId)/scheduled-events/\(eventId)\(suffix)")
     }
 
     public func modifyGuildScheduledEvent(
-        guildId: Snowflake,
-        eventId: Snowflake,
-        channelId: Snowflake? = nil,
+        guildId: GuildID,
+        eventId: GuildScheduledEventID,
+        channelId: ChannelID? = nil,
         entityType: GuildScheduledEvent.EntityType? = nil,
         name: String? = nil,
         scheduledStartTimeISO8601: String? = nil,
@@ -1258,7 +1265,7 @@ public final class DiscordClient {
         entityMetadata: GuildScheduledEvent.EntityMetadata? = nil
     ) async throws -> GuildScheduledEvent {
         struct Body: Encodable {
-            let channel_id: Snowflake?
+            let channel_id: ChannelID?
             let entity_type: Int?
             let name: String?
             let scheduled_start_time: String?
@@ -1282,17 +1289,17 @@ public final class DiscordClient {
         return try await http.patch(path: "/guilds/\(guildId)/scheduled-events/\(eventId)", body: body)
     }
 
-    public func deleteGuildScheduledEvent(guildId: Snowflake, eventId: Snowflake) async throws {
+    public func deleteGuildScheduledEvent(guildId: GuildID, eventId: GuildScheduledEventID) async throws {
         try await http.delete(path: "/guilds/\(guildId)/scheduled-events/\(eventId)")
     }
 
     public func listGuildScheduledEventUsers(
-        guildId: Snowflake,
-        eventId: Snowflake,
+        guildId: GuildID,
+        eventId: GuildScheduledEventID,
         limit: Int? = nil,
         withMember: Bool = false,
-        before: Snowflake? = nil,
-        after: Snowflake? = nil
+        before: UserID? = nil,
+        after: UserID? = nil
     ) async throws -> [GuildScheduledEventUser] {
         var path = "/guilds/\(guildId)/scheduled-events/\(eventId)/users"
         var qs: [String] = []
@@ -1305,27 +1312,27 @@ public final class DiscordClient {
     }
 
     // MARK: - REST: Stage Instances
-    public func createStageInstance(channelId: Snowflake, topic: String, privacyLevel: Int = 2, guildScheduledEventId: Snowflake? = nil) async throws -> StageInstance {
+    public func createStageInstance(channelId: ChannelID, topic: String, privacyLevel: Int = 2, guildScheduledEventId: GuildScheduledEventID? = nil) async throws -> StageInstance {
         struct Body: Encodable {
-            let channel_id: Snowflake
+            let channel_id: ChannelID
             let topic: String
             let privacy_level: Int
-            let guild_scheduled_event_id: Snowflake?
+            let guild_scheduled_event_id: GuildScheduledEventID?
         }
         let body = Body(channel_id: channelId, topic: topic, privacy_level: privacyLevel, guild_scheduled_event_id: guildScheduledEventId)
         return try await http.post(path: "/stage-instances", body: body)
     }
 
-    public func getStageInstance(channelId: Snowflake) async throws -> StageInstance {
+    public func getStageInstance(channelId: ChannelID) async throws -> StageInstance {
         try await http.get(path: "/stage-instances/\(channelId)")
     }
 
-    public func modifyStageInstance(channelId: Snowflake, topic: String? = nil, privacyLevel: Int? = nil) async throws -> StageInstance {
+    public func modifyStageInstance(channelId: ChannelID, topic: String? = nil, privacyLevel: Int? = nil) async throws -> StageInstance {
         struct Body: Encodable { let topic: String?; let privacy_level: Int? }
         return try await http.patch(path: "/stage-instances/\(channelId)", body: Body(topic: topic, privacy_level: privacyLevel))
     }
 
-    public func deleteStageInstance(channelId: Snowflake) async throws {
+    public func deleteStageInstance(channelId: ChannelID) async throws {
         try await http.delete(path: "/stage-instances/\(channelId)")
     }
 }

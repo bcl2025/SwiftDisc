@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
+private struct APIErrorBody: Decodable { let message: String; let code: Int? }
+
+#if canImport(FoundationNetworking) || os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 
 final class HTTPClient {
     private let token: String
@@ -10,7 +17,9 @@ final class HTTPClient {
         self.token = token
         self.configuration = configuration
         let config = URLSessionConfiguration.default
+        #if !os(Windows)
         config.waitsForConnectivity = true
+        #endif
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
@@ -86,7 +95,7 @@ final class HTTPClient {
                 guard let http = resp as? HTTPURLResponse else { throw DiscordError.network(NSError(domain: "InvalidResponse", code: -1)) }
 
                 // propagate rate limit header updates
-                rateLimiter.updateFromHeaders(routeKey: routeKey, headers: http.allHeaderFields)
+                await rateLimiter.updateFromHeaders(routeKey: routeKey, headers: http.allHeaderFields)
 
                 if (200..<300).contains(http.statusCode) {
                     do { return try JSONDecoder().decode(T.self, from: data) } catch { throw DiscordError.decoding(error) }
@@ -107,8 +116,7 @@ final class HTTPClient {
                 }
 
                 // Detailed API error decoding
-                struct APIError: Decodable { let message: String; let code: Int? }
-                if let apiErr = try? JSONDecoder().decode(APIError.self, from: data) {
+                if let apiErr = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
                     throw DiscordError.api(message: apiErr.message, code: apiErr.code)
                 }
                 let message = String(data: data, encoding: .utf8) ?? ""
@@ -210,7 +218,7 @@ final class HTTPClient {
             do {
                 let (data, resp) = try await session.data(for: req)
                 guard let http = resp as? HTTPURLResponse else { throw DiscordError.network(NSError(domain: "InvalidResponse", code: -1)) }
-                rateLimiter.updateFromHeaders(routeKey: routeKey, headers: http.allHeaderFields)
+                await rateLimiter.updateFromHeaders(routeKey: routeKey, headers: http.allHeaderFields)
                 if (200..<300).contains(http.statusCode) {
                     do { return try JSONDecoder().decode(T.self, from: data) } catch { throw DiscordError.decoding(error) }
                 }
@@ -224,8 +232,7 @@ final class HTTPClient {
                     await rateLimiter.backoff(after: backoff)
                     continue
                 }
-                struct APIError: Decodable { let message: String; let code: Int? }
-                if let apiErr = try? JSONDecoder().decode(APIError.self, from: data) {
+                if let apiErr = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
                     throw DiscordError.api(message: apiErr.message, code: apiErr.code)
                 }
                 let message = String(data: data, encoding: .utf8) ?? ""
@@ -271,7 +278,7 @@ final class HTTPClient {
             do {
                 let (data, resp) = try await session.data(for: req)
                 guard let http = resp as? HTTPURLResponse else { throw DiscordError.network(NSError(domain: "InvalidResponse", code: -1)) }
-                rateLimiter.updateFromHeaders(routeKey: routeKey, headers: http.allHeaderFields)
+                await rateLimiter.updateFromHeaders(routeKey: routeKey, headers: http.allHeaderFields)
                 if (200..<300).contains(http.statusCode) {
                     do { return try JSONDecoder().decode(T.self, from: data) } catch { throw DiscordError.decoding(error) }
                 }
@@ -285,8 +292,7 @@ final class HTTPClient {
                     await rateLimiter.backoff(after: backoff)
                     continue
                 }
-                struct APIError: Decodable { let message: String; let code: Int? }
-                if let apiErr = try? JSONDecoder().decode(APIError.self, from: data) {
+                if let apiErr = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
                     throw DiscordError.api(message: apiErr.message, code: apiErr.code)
                 }
                 let message = String(data: data, encoding: .utf8) ?? ""
@@ -329,3 +335,55 @@ final class HTTPClient {
         return 1.0
     }
 }
+
+#else
+
+final class HTTPClient {
+    private let token: String
+    private let configuration: DiscordConfiguration
+
+    init(token: String, configuration: DiscordConfiguration) {
+        self.token = token
+        self.configuration = configuration
+    }
+
+    struct HTTPUnavailable: Error {}
+
+    func get<T: Decodable>(path: String) async throws -> T {
+        throw HTTPUnavailable()
+    }
+
+    func post<B: Encodable, T: Decodable>(path: String, body: B) async throws -> T {
+        throw HTTPUnavailable()
+    }
+
+    func patch<B: Encodable, T: Decodable>(path: String, body: B) async throws -> T {
+        throw HTTPUnavailable()
+    }
+
+    func put<B: Encodable, T: Decodable>(path: String, body: B) async throws -> T {
+        throw HTTPUnavailable()
+    }
+
+    func put(path: String) async throws {
+        throw HTTPUnavailable()
+    }
+
+    func delete<T: Decodable>(path: String) async throws -> T {
+        throw HTTPUnavailable()
+    }
+
+    func delete(path: String) async throws {
+        throw HTTPUnavailable()
+    }
+
+    func postMultipart<T: Decodable, B: Encodable>(path: String, jsonBody: B?, files: [FileAttachment]) async throws -> T {
+        throw HTTPUnavailable()
+    }
+
+    func patchMultipart<T: Decodable, B: Encodable>(path: String, jsonBody: B?, files: [FileAttachment]?) async throws -> T {
+        throw HTTPUnavailable()
+    }
+}
+
+#endif

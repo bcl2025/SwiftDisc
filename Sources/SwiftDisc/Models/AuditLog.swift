@@ -13,19 +13,19 @@ public struct AuditLogEntry: Codable, Hashable {
         public let old_value: CodableValue?
     }
     public struct OptionalInfo: Codable, Hashable {
-        public let channel_id: Snowflake?
+        public let channel_id: ChannelID?
         public let count: String?
         public let delete_member_days: String?
-        public let id: Snowflake?
+        public let id: AuditLogEntryID?
         public let members_removed: String?
-        public let message_id: Snowflake?
+        public let message_id: MessageID?
         public let role_name: String?
         public let type: String?
-        public let application_id: Snowflake?
+        public let application_id: ApplicationID?
     }
-    public let id: Snowflake
+    public let id: AuditLogEntryID
     public let target_id: String?
-    public let user_id: Snowflake?
+    public let user_id: UserID?
     public let action_type: Int
     public let changes: [Change]?
     public let options: OptionalInfo?

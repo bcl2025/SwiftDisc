@@ -40,10 +40,10 @@ final class ShardingTests: XCTestCase {
     }
 
     func testShardedEventWrapper() {
-        let guild = Guild(id: Snowflake("123"), name: "Test Guild")
+        let guild = Guild(id: GuildID("123"), name: "Test Guild", owner_id: nil, member_count: nil)
         let se = ShardedEvent(shardId: 2, event: .guildCreate(guild), receivedAt: Date(), shardLatency: 0.030)
         XCTAssertEqual(se.shardId, 2)
-        XCTAssertEqual(se.shardLatency, 0.030, accuracy: 0.0001)
+        XCTAssertEqual(se.shardLatency ?? 0.0, 0.030, accuracy: 0.0001)
         if case let .guildCreate(g) = se.event {
             XCTAssertEqual(g.id.rawValue, "123")
         } else {

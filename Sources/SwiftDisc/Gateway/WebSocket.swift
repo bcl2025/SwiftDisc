@@ -20,7 +20,9 @@ final class URLSessionWebSocketAdapter: WebSocketClient {
 
     init(url: URL) {
         let config = URLSessionConfiguration.default
+        #if !os(Windows)
         config.waitsForConnectivity = true
+        #endif
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60

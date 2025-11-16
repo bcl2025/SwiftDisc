@@ -145,7 +145,7 @@ Add SwiftDisc to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/M1tsumi/SwiftDisc.git", from: "0.8.0")
+    .package(url: "https://github.com/M1tsumi/SwiftDisc.git", from: "0.10.0")
 ]
 ```
 
@@ -165,7 +165,29 @@ targets: [
 | macOS | 11.0+ | ✅ Fully Supported |
 | tvOS | 14.0+ | ✅ Fully Supported |
 | watchOS | 7.0+ | ✅ Fully Supported |
-| Windows | Swift 5.9+ | ✅ Fully Supported |
+| Windows | Swift 5.9+ | ✅ Fully Supported (CI: Windows Server 2022 + Swift 5.10.1) |
+
+### 🧪 Build & Test
+
+SwiftDisc uses the Swift Package Manager.
+
+**macOS / Linux** (Swift 5.9+):
+
+```bash
+swift build
+swift test
+```
+
+**Windows** (Swift 5.9+ from swift.org):
+
+```powershell
+swift build
+swift test
+```
+
+CI runs these commands on:
+- `macos-latest` with Xcode 16.4 / Swift 5.10.1
+- `windows-2022` with Swift 5.10.1 (via `compnerd/gha-setup-swift`)
 
 ---
 

@@ -30,6 +30,7 @@ public enum GatewayOpcode: Int, Codable {
     case heartbeat = 1
     case presenceUpdate = 3
     case identify = 2
+    case voiceStateUpdate = 4
     case resume = 6
     case reconnect = 7
     case requestGuildMembers = 8

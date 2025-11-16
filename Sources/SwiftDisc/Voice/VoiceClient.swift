@@ -77,16 +77,15 @@ final class VoiceClient {
         // Only care about our own bot's voice state
         if let my = botUserId, state.user_id != my { return }
         // Capture session_id for the bot user
-        if let sid = state.session_id {
-            sess.sessionId = sid
-            sessions[gid] = sess
-        }
+        let sid = state.session_id
+        sess.sessionId = sid
+        sessions[gid] = sess
         await tryBeginVoiceHandshakeIfReady(guildId: sess.guildId)
     }
 
     func onVoiceServerUpdate(_ vsu: VoiceServerUpdate, botUserId: UserID) async {
         self.botUserId = botUserId
-        guard var sess = sessions[vsu.guild_id] ?? Session(guildId: vsu.guild_id, channelId: nil, sessionId: nil, endpoint: nil, token: nil, voiceGateway: nil, udpPort: nil, ssrc: nil, secretKey: nil) else { return }
+        var sess = sessions[vsu.guild_id] ?? Session(guildId: vsu.guild_id, channelId: nil, sessionId: nil, endpoint: nil, token: nil, voiceGateway: nil, udpPort: nil, ssrc: nil, secretKey: nil)
         sess.endpoint = vsu.endpoint
         sess.token = vsu.token
         sessions[vsu.guild_id] = sess
@@ -124,7 +123,7 @@ final class VoiceClient {
     private func udpIPDiscovery(host: String, port: UInt16, ssrc: UInt32) async throws -> (ip: String, port: UInt16)? {
         #if canImport(Network)
         // Resolve host without protocol
-        let cleanHost = host.replacingOccurrences(of: ":\d+", with: "", options: .regularExpression)
+        let cleanHost = host.replacingOccurrences(of: ":\\d+", with: "", options: .regularExpression)
         let params = NWParameters.udp
         let endpoint = NWEndpoint.hostPort(host: .name(cleanHost, nil), port: NWEndpoint.Port(rawValue: port)!)
         let conn = NWConnection(to: endpoint, using: params)

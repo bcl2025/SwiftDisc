@@ -10,22 +10,22 @@ public struct AutoModerationRule: Codable, Hashable {
     }
     public struct Action: Codable, Hashable {
         public struct Metadata: Codable, Hashable {
-            public let channel_id: Snowflake?
+            public let channel_id: ChannelID?
             public let duration_seconds: Int?
             public let custom_message: String?
         }
         public let type: Int
         public let metadata: Metadata?
     }
-    public let id: Snowflake
-    public let guild_id: Snowflake
+    public let id: AutoModerationRuleID
+    public let guild_id: GuildID
     public let name: String
-    public let creator_id: Snowflake
+    public let creator_id: UserID
     public let event_type: Int
     public let trigger_type: Int
     public let trigger_metadata: TriggerMetadata?
     public let actions: [Action]
     public let enabled: Bool
-    public let exempt_roles: [Snowflake]?
-    public let exempt_channels: [Snowflake]?
+    public let exempt_roles: [RoleID]?
+    public let exempt_channels: [ChannelID]?
 }

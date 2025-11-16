@@ -1,3 +1,29 @@
+## [0.10.1] - 2025-11-16
+
+### Highlights
+- Cross-platform polish: verified builds and tests on macOS and Windows, aligned tests with current APIs, and tightened platform guards.
+
+### Changed
+- Models
+  - Completed migration away from bare `Snowflake` usages to typed ID aliases in remaining models (webhooks, stickers, invites, audit log, auto-moderation, stage instances, scheduled events).
+  - Added `PartialGuild` model used by `getCurrentUserGuilds`.
+- REST / HTTP
+  - Updated `HTTPClient` to import `FoundationNetworking` where available and gate URLSession configuration (e.g. `waitsForConnectivity`) behind platform checks.
+  - Ensured actor-isolated `RateLimiter` methods are called with `await` from HTTP helpers.
+  - Added explicit typed ID parameters (e.g. `GuildID`, `ChannelID`, `ApplicationCommandID`, `StickerID`, `WebhookID`, `AutoModerationRuleID`, `AuditLogEntryID`) to remaining REST helpers.
+- Voice / Crypto
+  - Refactored `Secretbox` Salsa20 core to avoid overlapping inout accesses and use explicit buffer handling in `withUnsafeBytes`.
+- Tests
+  - Updated `SlashCommandRouterTests` to use the new `focused` field on interaction options.
+  - Updated `ShardingTests` to construct `Guild` with the new initializer signature and to assert optional shard latency safely.
+
+### Docs & CI
+- README
+  - Documented the Build & Test flow for macOS/Linux and Windows (`swift build` / `swift test`) and noted the CI environments.
+  - Clarified Windows row in the Platform Requirements table (Swift 5.9+; CI on Windows Server 2022 + Swift 5.10.1).
+- CI
+  - Confirmed `.github/workflows/ci.yml` builds and tests on `macos-latest` (Xcode 16.4) and `windows-2022` (Swift 5.10.1), matching the local configuration.
+
 ## [0.10.0] - 2025-11-14
 
 ### Highlights

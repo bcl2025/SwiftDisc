@@ -1,9 +1,9 @@
 import Foundation
 
 final class VoiceGateway {
-    struct Hello: Decodable { let heartbeat_interval: Int }
-    struct Ready: Decodable { let ssrc: UInt32; let port: UInt16; let modes: [String] }
-    struct SessionDescription: Decodable { let mode: String; let secret_key: [UInt8] }
+    struct Hello: Codable { let heartbeat_interval: Int }
+    struct Ready: Codable { let ssrc: UInt32; let port: UInt16; let modes: [String] }
+    struct SessionDescription: Codable { let mode: String; let secret_key: [UInt8] }
 
     enum Op: Int, Codable { case identify = 0, selectProtocol = 1, ready = 2, heartbeat = 3, sessionDescription = 4, speaking = 5, heartbeatAck = 6, resume = 7, hello = 8, resumed = 9, clientDisconnect = 13 }
 
