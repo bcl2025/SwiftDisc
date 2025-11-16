@@ -42,12 +42,12 @@ jobs:
     continue-on-error: true  # Swift + Windows SDK 10.0.26100 can hit a ucrt cyclic dependency; don't fail the whole pipeline
     steps:
       - uses: actions/checkout@v4
-      - name: Install Swift 5.10.1
+      - name: Install Swift 6.2
         uses: compnerd/gha-setup-swift@main
         with:
           source: swift.org
-          swift-version: swift-5.10.1-release
-          swift-build: 5.10.1-RELEASE
+          swift-version: swift-6.2-release
+          swift-build: 6.2-RELEASE
       - name: Build
         shell: pwsh
         run: swift build -v
