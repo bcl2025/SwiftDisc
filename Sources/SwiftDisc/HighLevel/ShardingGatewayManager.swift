@@ -84,7 +84,7 @@ public actor ShardingGatewayManager {
         var info: GatewayBotInfo
         var fetchedAt: Date
     }
-    private static var cachedGatewayBot: GatewayBotCache?
+    private var cachedGatewayBot: GatewayBotCache?
 
     private struct GatewayBotInfo: Decodable {
         struct SessionStartLimit: Decodable { let total: Int; let remaining: Int; let reset_after: Int; let max_concurrency: Int }
@@ -283,7 +283,7 @@ public actor ShardingGatewayManager {
             try? await Task.sleep(nanoseconds: 5_000_000_000)
         }
         // Clear gateway bot cache
-        Self.cachedGatewayBot = nil
+        cachedGatewayBot = nil
         // Finish events
         eventContinuation?.finish()
         log(.info, "✅ All shards disconnected gracefully")
@@ -314,14 +314,14 @@ public actor ShardingGatewayManager {
     }
 
     private func gatewayBotInfo(forceRefresh: Bool = false) async throws -> GatewayBotInfo {
-        if !forceRefresh, let cached = Self.cachedGatewayBot {
+        if !forceRefresh, let cached = cachedGatewayBot {
             if Date().timeIntervalSince(cached.fetchedAt) < 24 * 3600 { return cached.info }
         }
         let http = HTTPClient(token: token, configuration: httpConfiguration)
         struct Info: Decodable { let url: String; let shards: Int; let session_start_limit: GatewayBotInfo.SessionStartLimit }
         let info: Info = try await http.get(path: "/gateway/bot")
         let converted = GatewayBotInfo(url: info.url, shards: info.shards, session_start_limit: .init(total: info.session_start_limit.total, remaining: info.session_start_limit.remaining, reset_after: info.session_start_limit.reset_after, max_concurrency: info.session_start_limit.max_concurrency))
-        Self.cachedGatewayBot = .init(info: converted, fetchedAt: Date())
+        cachedGatewayBot = .init(info: converted, fetchedAt: Date())
         return converted
     }
 

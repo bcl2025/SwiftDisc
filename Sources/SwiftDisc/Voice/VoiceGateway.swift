@@ -24,19 +24,19 @@ final class VoiceGateway {
         let sock = URLSessionWebSocketAdapter(url: url)
         self.ws = sock
 
-        // 1) Receive HELLO
+        // Receive initial HELLO frame from the voice gateway
         guard case let .string(helloText) = try await sock.receive() else { throw DiscordError.gateway("Expected voice HELLO") }
         let hello = try JSONDecoder().decode(Payload<Hello>.self, from: Data(helloText.utf8))
         guard hello.op == .hello else { throw DiscordError.gateway("Invalid voice HELLO op") }
         startHeartbeat(intervalMs: hello.d.heartbeat_interval)
 
-        // 2) Identify
+        // Send Identify payload with guild, user, and session information
         struct Identify: Codable { let server_id: GuildID; let user_id: UserID; let session_id: String; let token: String }
         let identify = Payload(op: .identify, d: Identify(server_id: guildId, user_id: userId, session_id: sessionId, token: token))
         let enc = JSONEncoder()
         try await sock.send(.string(String(decoding: try enc.encode(identify), as: UTF8.self)))
 
-        // 3) Ready
+        // Wait for READY and capture voice connection parameters
         guard case let .string(readyText) = try await sock.receive() else { throw DiscordError.gateway("Expected voice READY") }
         let ready = try JSONDecoder().decode(Payload<Ready>.self, from: Data(readyText.utf8))
         guard ready.op == .ready else { throw DiscordError.gateway("Invalid voice READY op") }
@@ -52,7 +52,7 @@ final class VoiceGateway {
         let payload = Payload(op: .selectProtocol, d: Select(protocol_: "udp", data: SelectData(address: ip, port: port, mode: mode)))
         try await ws.send(.string(String(decoding: try JSONEncoder().encode(payload), as: UTF8.self)))
 
-        // Wait for SessionDescription
+        // Await SessionDescription to obtain the voice encryption key
         guard case let .string(sdText) = try await ws.receive() else { throw DiscordError.gateway("Expected SESSION_DESCRIPTION") }
         let sd = try JSONDecoder().decode(Payload<SessionDescription>.self, from: Data(sdText.utf8))
         guard sd.op == .sessionDescription else { throw DiscordError.gateway("Invalid SESSION_DESCRIPTION op") }

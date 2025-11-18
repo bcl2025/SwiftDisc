@@ -81,7 +81,7 @@ actor GatewayClient {
         self.lastShard = shard
         self.status = .connecting
 
-        // 1) Receive HELLO
+        // Receive initial HELLO frame from the gateway
         guard case let .string(helloText) = try await socket.receive() else {
             throw DiscordError.gateway("Expected HELLO string frame")
         }
@@ -90,10 +90,10 @@ actor GatewayClient {
         guard hello.op == .hello, let d = hello.d else { throw DiscordError.gateway("Invalid HELLO payload") }
         heartbeatIntervalMs = d.heartbeat_interval
 
-        // 2) Start heartbeat loop
+        // Start heartbeat loop based on negotiated interval
         startHeartbeat()
 
-        // 3) Send Resume (if possible) or Identify
+        // Send Resume when resuming a session, otherwise Identify
         let enc = JSONEncoder()
         if let sessionId, let seq {
             self.status = .resuming
@@ -111,11 +111,11 @@ actor GatewayClient {
             try await socket.send(.string(String(decoding: data, as: UTF8.self)))
         }
 
-        // 4) Start read loop
+        // Start read loop for gateway messages
         Task.detached { [weak self] in
             await self?.readLoop(eventSink: eventSink)
         }
-        // 5) Await READY/RESUMED before returning
+        // Wait for READY or RESUMED before returning
         if self.status != .ready {
             await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                 self.connectReadyContinuation = cont
