@@ -29,19 +29,17 @@ Works on macOS, iOS, tvOS, watchOS, and Windows.
 
 ## Installation
 
-Add to your `Package.swift`:
+Add SwiftDisc to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/M1tsumi/SwiftDisc.git", from: "0.10.0")
+    .package(url: "https://github.com/M1tsumi/SwiftDisc.git", from: "0.10.2")
 ]
-```
 
 ```swift
 targets: [
     .target(name: "YourBot", dependencies: ["SwiftDisc"])
 ]
-```
 
 ### Platform Support
 
@@ -87,7 +85,6 @@ struct MyBot {
         }
     }
 }
-```
 
 ## Features
 
@@ -331,10 +328,10 @@ CI runs on macOS (Xcode 16.4 / Swift 5.10.1) and Windows Server 2022 (Swift 5.10
 
 ## Roadmap
 
-Done:
-- Autocomplete
-- File uploads with MIME detection
-- Thread and scheduled event support
+### Current Focus (v0.10.x)
+- [x] Autocomplete
+- [x] File uploads polish (MIME + guardrails)
+- [x] Gateway parity: Threads & Scheduled Events + raw fallback
 - Caching and permissions utilities
 - Extensions/cogs system
 
